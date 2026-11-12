@@ -1,47 +1,90 @@
-# buildfile — image invitée QNX 8.0 pour la démo Réplique (outil mkifs).
+# image/buildfile — image invitée QNX 8.0 (x86_64) pour la démo Déclic.
 #
-# Cette image démarre sous QEMU (x86_64) et contient :
-#   - le noyau et les pilotes de base (startup-bios, devc, procnto) ;
-#   - tracelogger (le tampon de trace circulaire) et dumper (les core dumps) ;
-#   - Déclic, le démon de figeage (construit par `make target-qnx`) ;
-#   - les trois générateurs de bogues de scenarios/SPEC.md ;
-#   - le journal système (slog2 / sl-pinfo.so).
+# Construite avec le SDP 8.0 :
+#   export QNX_HOST=$SDP/host/linux/x86_64
+#   export QNX_TARGET=$SDP/target/qnx
+#   mkifs -v -o . <buildfile rendu> replique.ifs
 #
-# AVERTISSEMENT D'HONNÊTETÉ : le SDP 8.0 n'est pas installé sur la machine
-# de développement. La syntaxe ci-dessous suit la forme publique des
-# buildfiles mkifs ; chaque point incertain est marqué « À VÉRIFIER ».
-# Le point de départ recommandé est le buildfile d'exemple fourni par le SDP
-# (target/qnx6/... ou le paquet d'exemples QEMU) : il faut partir de là et
-# ajouter les lignes Déclic + bogues, plutôt que d'inventer une image.
+# Contenu : le noyau (procnto), un shell sur la console série, les outils
+# QNX utiles à l'analyse (pidin, slog2info, tracelogger, dumper) et les
+# binaires du projet : Déclic + les trois générateurs de bogues.
+#
+# La liste de recherche (search) commence par le répertoire courant : les
+# binaires du projet doivent y avoir été copiés (voir image/README.md).
 
-[image]
-format=ifs
+# Racine de recherche : le repertoire courant (binaires du projet) puis la
+# racine de la cible QNX (les entrees du fichier sont relatives a ces racines).
+[search=.:$QNX_TARGET/x86_64:$QNX_TARGET/x86_64/boot/sys:]
 
-[+script]
-# --- démarrage et noyau (x86_64) ---
-# À VÉRIFIER SUR LE SDP 8.0 : nom exact des fichiers de démarrage x86_64
-# (startup-bios, devc-82564.so, procnto-x86_64.so) et leur emplacement.
-startup-bios=startup-bios
-devc-82564.so=devc-82564.so
-procnto-x86_64.so=procnto-x86_64.so
+[+dupignore]
+[+optional]
 
-# --- journal système ---
-# À VÉRIFIER SUR LE SDP 8.0 : nom exact du service slog2 (sl-pinfo.so ?)
-# et la commande de démarrage associée.
-sl-pinfo.so=sl-pinfo.so
+[uid=0 gid=0 dperms=0555 perms=0555]
 
-# --- trace noyau et vidage d'incident ---
-# À VÉRIFIER SUR LE SDP 8.0 : tracelogger et dumper sont-ils fournis tels
-# quels dans le SDP 8.0, et quels arguments leur passer au démarrage.
-tracelogger=tracelogger
-dumper=dumper
+[image=20m]
+[virtual=x86_64,multiboot ] boot = {
+    startup-x86 -D8250..115200 -zz -f 0,0,1000M
+    PATH=/proc/boot:/system/bin
+    LD_LIBRARY_PATH=/proc/boot:/system/lib:/system/lib/dll
+    [+keeplinked uid=0 gid=0 perms=0700 ] CONFIG_PATH=/proc/boot:/system/etc procnto-smp-instr -mr -d 022 -u 066 -F 2000
+}
 
-# --- Déclic (démon de figeage) ---
-# Construit par : make target-qnx  →  target/declic/declic
-declic=../target/declic/declic
+# ------------------------------------------------------------------ démarrage
+[+script] startup-script = {
+    procmgr_symlink /proc/boot/ksh /bin/sh
+    procmgr_symlink /proc/boot/ksh /bin/ksh
+    procmgr_symlink /var/tmp /tmp
+    procmgr_symlink /proc/boot/ldqnx-64.so.2 /usr/lib/ldqnx-64.so.2
+    procmgr_symlink /proc/boot/slog2info /bin/slog2
+    procmgr_symlink /proc/boot/pidin /bin/pidin
+    procmgr_symlink /proc/boot/tracelogger /bin/tracelogger
+    procmgr_symlink /proc/boot/dumper /bin/dumper
+    PATH=/proc/boot:/system/bin
+    LD_LIBRARY_PATH=/proc/boot:/system/lib:/system/lib/dll
+    HOME=/proc/boot
+    TERM=qansi
+    # Pilotes de peripheriques : sans eux, ni la console VGA ni le port
+    # serie n'existent (constate au premier boot : l'IFS s'arretait sur
+    # « QNX v1.2d Boot Loader »).
+    devc-con -n
+    devc-ser8250 -e 115200
+    waitfor /dev/ser1
+    # Pilote de disque + modules de systeme de fichiers : sans eux, procnto
+    # ne peut pas monter la racine et le boot s'arrete aussitot (constate au
+    # deuxieme boot : l'IFS demarrait mais ne rendait pas la main).
+    devb-eide cam user=20:20 blk cache=64M,auto=partition,vnode=2000,ncache=2000,commit=low
+    waitfor /dev/hd0
+    display_msg "Replique - invite QNX 8.0 (demo Declic)"
+    # Le dumper ecrit les core dumps dans /var/dumper/cores (essai E5).
+    dumper -U 30:30 -d /var/dumper -M 1000 -D cores
+    # Shell sur la console serie : c'est par la que la demo se pilote.
+    on -d -t /dev/ser1 -e HOME=/proc/boot ksh -l
+}
 
-# --- générateurs de bogues (scenarios/SPEC.md §2, §3, §4) ---
-# Construits par : cd image/bugs && make -f Makefile.qnx
-deadlock=bugs/deadlock
-prio_inversion=bugs/prio_inversion
-race=bugs/race
+# ------------------------------------------------------------------- fichiers
+# Le chargeur multiboot est exige par la section [virtual=x86_64,multiboot].
+multiboot.boot = boot/sys/multiboot.boot
+procnto-smp-instr = boot/sys/procnto-smp-instr
+startup-x86 = boot/sys/startup-x86
+
+devc-con = sbin/devc-con
+devc-ser8250 = sbin/devc-ser8250
+devb-eide = sbin/devb-eide
+io-blk.so = lib/dll/io-blk.so
+fs-qnx6.so = lib/dll/fs-qnx6.so
+on = bin/on
+sh = bin/sh
+ksh = bin/ksh
+pidin = bin/pidin
+slog2info = bin/slog2info
+tracelogger = usr/sbin/tracelogger
+dumper = usr/sbin/dumper
+
+ldqnx-64.so.2 = usr/lib/ldqnx-64.so.2
+libc.so.6 = lib/libc.so.6
+
+# Binaires du projet (copies dans le repertoire du buildfile).
+declic = ./declic
+bug-deadlock = ./bug-deadlock
+bug-prio-inversion = ./bug-prio-inversion
+bug-race = ./bug-race
