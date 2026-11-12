@@ -59,7 +59,7 @@ Le workflow **échoue immédiatement avec un message explicite** quand le secret
 est absent (pas de traceback, rien de poussé). À poser une fois par dépôt :
 
 ```bash
-gh secret set INFERHUB_API_KEY --repo BaptisteFaisy/replique
+gh secret set INFERHUB_API_KEY --repo Tradoooo/replique
 # ou : Settings → Secrets and variables → Actions → New repository secret
 ```
 
