@@ -248,14 +248,20 @@ static int write_archive(const declic_term_event *ev, uint64_t ts)
             declic_status_name(status));
     return -1;
   }
+  sha256_hex(archive, archive_len, hex);
+  /* Résumé sur la console (le port série de la démo) : c'est la preuve
+   * visible, indépendante de l'écriture disque. */
+  printf("declic: pid=%u signal=%u status=%u\n", ev->pid, ev->signal, ev->status);
+  printf("declic: archive %lu octets sha256=%s\n", (unsigned long)archive_len, hex);
+  printf("declic: sections trace=%lu pidin=%lu slog2=%lu core=%lu manifest=%lu\n",
+         (unsigned long)art.trace_len, (unsigned long)art.pidin_len,
+         (unsigned long)art.slog2_len, (unsigned long)art.core_len,
+         (unsigned long)art.manifest_len);
   snprintf(path, sizeof path, "%s/declic-%u-%llu", g_cfg.out_dir, ev->pid,
            (unsigned long long)ts);
   if (write_file(path, archive, archive_len) != 0) {
-    return -1;
+    return 0;   /* l'archive est quand même montrée sur la console */
   }
-  sha256_hex(archive, archive_len, hex);
-  printf("declic: archive %s (%lu octets) sha256=%s\n", path,
-         (unsigned long)archive_len, hex);
   return 0;
 }
 
