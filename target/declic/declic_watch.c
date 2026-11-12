@@ -1,6 +1,8 @@
 /* declic_watch.c — observation des terminaisons de processus (essai E3).
- * Déclenché par la scrutation de /proc et par `pidin dead` (le HAM et le
- * service de noms ayant disparu du SDP 8.0). */
+ * Déclenché par la scrutation de /proc : le HAM et le service de noms ont
+ * disparu du SDP 8.0, et `pidin dead` n'existe plus non plus. On ne récupère
+ * ici QUE la disparition d'un pid ; le signal de fin est fourni par l'appelant
+ * (démo S7, --signal/--status). */
 #include "declic_watch.h"
 
 #include <dirent.h>
@@ -96,63 +98,18 @@ int declic_wait_for_any_death(uint32_t *pid_out, unsigned poll_ms)
   }
 }
 
-/* Numéro de signal QNX à partir de son nom (`pidin dead`). */
-static int signal_number(const char *name)
-{
-  static const struct {
-    const char *name;
-    int number;
-  } table[] = {
-    {"SIGINT", 2}, {"SIGILL", 4}, {"SIGTRAP", 5}, {"SIGABRT", 6}, {"SIGFPE", 8},
-    {"SIGKILL", 9}, {"SIGBUS", 10}, {"SIGSEGV", 11}, {"SIGDUMP", 13},
-    {"SIGALRM", 14}, {"SIGTERM", 15}, {"SIGPROF", 27}
-  };
-  size_t i;
-
-  for (i = 0u; i < sizeof table / sizeof table[0]; ++i) {
-    if (!strcmp(name, table[i].name)) {
-      return table[i].number;
-    }
-  }
-  return 0;
-}
-
-/* Statut et signal de fin, lus dans `pidin dead`. */
+/* Statut et signal de fin. QNX 8.0 n'expose plus la liste des morts
+ * (`pidin dead` a disparu : « invalid or ambiguous shorthand ») et le HAM
+ * n'existe plus ; la scrutation /proc ne voit qu'une disparition de pid, pas
+ * le signal. L'appelant fournit donc --signal/--status (démo S7) ; à défaut,
+ * on rend des valeurs neutres (0/0) plutôt que d'inventer. */
 void declic_detect_termination(uint32_t pid, uint32_t *status, uint32_t *signal)
 {
-  static char buf[DECLIC_BUF];
-  size_t len = 0u;
-  size_t i = 0u;
-  FILE *pipe;
-
-  pipe = popen("pidin dead 2>/dev/null", "r");
-  if (!pipe) {
-    return;
+  (void)pid;
+  if (status != NULL) {
+    *status = 0u;
   }
-  len = fread(buf, 1u, sizeof buf - 1u, pipe);
-  pclose(pipe);
-  while (i < len) {
-    size_t j = i;
-    char line[256];
-    unsigned int v = 0u;
-    char name[128];
-    char state[32];
-    unsigned int code = 0u;
-    char sig[64];
-
-    while (j < len && buf[j] != '\n') {
-      ++j;
-    }
-    if (j - i > 0u && j - i < sizeof line) {
-      memcpy(line, buf + i, j - i);
-      line[j - i] = '\0';
-      if (sscanf(line, "%u %127s %31s %x %63s", &v, name, state, &code, sig) >= 4 &&
-          v == pid) {
-        *status = code;
-        *signal = (uint32_t)signal_number(sig);
-        return;
-      }
-    }
-    i = (j < len) ? j + 1u : len;
+  if (signal != NULL) {
+    *signal = 0u;
   }
 }

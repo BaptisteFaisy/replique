@@ -18,6 +18,7 @@
  *     il écrit son tampon circulaire et se termine.
  */
 #include "declic.h"
+#include "declic_exec.h"
 #include "declic_watch.h"
 #include "sha256_portable.h"
 
@@ -47,6 +48,10 @@ typedef struct declic_config {
   char dump_dir[256];
   uint32_t watch_pid;
   uint32_t trace_pid;
+  uint32_t signal;    /* signal terminant (fourni par l'appelant : --signal) */
+  uint32_t status;    /* code de sortie (fourni par l'appelant : --status)  */
+  int signal_set;     /* 1 si --signal a été donné explicitement            */
+  int status_set;     /* 1 si --status a été donné explicitement            */
   declic_policy policy;
   unsigned poll_ms;
   int once;
@@ -73,24 +78,6 @@ static uint64_t now_ticks(void)
   return (uint64_t)ts.tv_sec * 1000000000ull + (uint64_t)ts.tv_nsec;
 }
 
-/* Exécute une commande et capture sa sortie (stdout + stderr). */
-static int run_capture(const char *cmd, unsigned char *buf, size_t cap,
-                       size_t *len)
-{
-  FILE *pipe;
-  size_t got;
-
-  *len = 0u;
-  pipe = popen(cmd, "r");
-  if (!pipe) {
-    return -1;
-  }
-  got = fread(buf, 1u, cap, pipe);
-  *len = got;
-  pclose(pipe);
-  return 0;
-}
-
 /* Découverte du pid de tracelogger (son nom suffit). */
 static uint32_t find_tracelogger_pid(void)
 {
@@ -98,8 +85,8 @@ static uint32_t find_tracelogger_pid(void)
   size_t len = 0u;
   size_t i = 0u;
 
-  if (run_capture(DECLIC_PIDIN_PROG " -F \"%a %n\" 2>&1", buf, sizeof buf,
-                  &len) != 0) {
+  if (declic_run_capture(DECLIC_PIDIN_PROG " -F \"%a %n\" 2>&1", buf, sizeof buf,
+                         &len) != 0) {
     return 0u;
   }
   while (i < len) {
@@ -116,7 +103,7 @@ static uint32_t find_tracelogger_pid(void)
       memcpy(line, buf + i, j - i);
       line[j - i] = '\0';
       if (sscanf(line, "%u %127s", &v, name) == 2 &&
-          strcmp(name, DECLIC_TRACELOGGER_PROG) == 0) {
+          strstr(name, DECLIC_TRACELOGGER_PROG) != NULL) {
         return (uint32_t)v;
       }
     }
@@ -130,7 +117,6 @@ static uint32_t find_tracelogger_pid(void)
 static int freeze_trace(void)
 {
   uint32_t pid = g_cfg.trace_pid ? g_cfg.trace_pid : find_tracelogger_pid();
-  int status = 0;
 
   if (!pid) {
     fprintf(stderr, "declic: tracelogger introuvable (--trace-pid ?)\n");
@@ -141,7 +127,20 @@ static int freeze_trace(void)
             strerror(errno));
     return -1;
   }
-  (void)waitpid((pid_t)pid, &status, 0);
+  /* tracelogger n'est pas notre fils : waitpid rendrait ECHILD. On attend sa
+   * disparition en scrutant /proc (2 s max), le temps qu'il vide son tampon
+   * circulaire dans le fichier .kev. */
+  {
+    int waited;
+
+    for (waited = 0; waited < 200 && declic_process_alive(pid); ++waited) {
+      struct timespec ts;
+
+      ts.tv_sec = 0;
+      ts.tv_nsec = 10000000L; /* 10 ms */
+      (void)nanosleep(&ts, NULL);
+    }
+  }
   g_cfg.trace_pid = 0u;
   fprintf(stderr, "declic: trace figée (tracelogger %u arrêté)\n", pid);
   return 0;
@@ -156,7 +155,7 @@ static void collect_core(uint32_t pid)
   size_t len = 0u;
 
   snprintf(cmd, sizeof cmd, "cat %s/%u/* 2>&1", g_cfg.dump_dir, pid);
-  (void)run_capture(cmd, buf, sizeof buf, &len);
+  (void)declic_run_capture(cmd, buf, sizeof buf, &len);
   if (len) {
     memcpy(g_blobs.core, buf, len);
     g_blobs.core_len = len;
@@ -169,13 +168,15 @@ static void collect_all(uint32_t pid)
   char cmd[600];
 
   (void)freeze_trace();
-  snprintf(cmd, sizeof cmd, "cat %s 2>&1", g_cfg.trace_path);
-  (void)run_capture(cmd, g_blobs.trace, sizeof g_blobs.trace,
-                    &g_blobs.trace_len);
-  (void)run_capture(DECLIC_PIDIN_PROG " 2>&1", g_blobs.pidin,
-                    sizeof g_blobs.pidin, &g_blobs.pidin_len);
-  (void)run_capture(DECLIC_SLOG2_PROG " 2>&1", g_blobs.slog2,
-                    sizeof g_blobs.slog2, &g_blobs.slog2_len);
+  if (g_cfg.trace_path[0] != '\0') {
+    snprintf(cmd, sizeof cmd, "cat %s 2>&1", g_cfg.trace_path);
+    (void)declic_run_capture(cmd, g_blobs.trace, sizeof g_blobs.trace,
+                             &g_blobs.trace_len);
+  }
+  (void)declic_run_capture(DECLIC_PIDIN_PROG " 2>&1", g_blobs.pidin,
+                           sizeof g_blobs.pidin, &g_blobs.pidin_len);
+  (void)declic_run_capture(DECLIC_SLOG2_PROG " 2>&1", g_blobs.slog2,
+                           sizeof g_blobs.slog2, &g_blobs.slog2_len);
   collect_core(pid);
 }
 
@@ -270,7 +271,10 @@ static void usage(void)
   fprintf(stderr,
           "declic [--pid <pid>] --out <rép> [--trace <fichier.kev>]\n"
           "       [--trace-pid <pid>] [--dump-dir <rép>] [--interval <ms>]\n"
-          "Sans --pid : archive le premier processus disparu (repli `pidin`).\n");
+          "       [--signal <n>] [--status <n>]\n"
+          "Sans --pid : archive le premier processus disparu (repli `pidin`).\n"
+          "--signal/--status : signal de fin et code de sortie, fournis par\n"
+          "l'appelant (QNX 8.0 n'a plus `pidin dead` pour les lire).\n");
 }
 
 /* Analyse des arguments. */
@@ -291,6 +295,12 @@ static int parse_args(int argc, char **argv)
       snprintf(g_cfg.dump_dir, sizeof g_cfg.dump_dir, "%s", argv[++i]);
     } else if (!strcmp(argv[i], "--interval") && i + 1 < argc) {
       g_cfg.poll_ms = (unsigned)strtoul(argv[++i], NULL, 0);
+    } else if (!strcmp(argv[i], "--signal") && i + 1 < argc) {
+      g_cfg.signal = (uint32_t)strtoul(argv[++i], NULL, 0);
+      g_cfg.signal_set = 1;
+    } else if (!strcmp(argv[i], "--status") && i + 1 < argc) {
+      g_cfg.status = (uint32_t)strtoul(argv[++i], NULL, 0);
+      g_cfg.status_set = 1;
     } else if (!strcmp(argv[i], "--once")) {
       g_cfg.once = 1;
     } else {
@@ -323,9 +333,12 @@ int main(int argc, char **argv)
   } else {
     (void)declic_wait_for_any_death(&ev.pid, g_cfg.poll_ms);
   }
-  ev.signal = 0u;
-  ev.status = 0u;
-  declic_detect_termination(ev.pid, &ev.status, &ev.signal);
+  if (g_cfg.signal_set || g_cfg.status_set) {
+    ev.signal = g_cfg.signal;
+    ev.status = g_cfg.status;
+  } else {
+    declic_detect_termination(ev.pid, &ev.status, &ev.signal);
+  }
   fprintf(stderr, "declic: terminaison observée du pid %u (statut %u, signal %u)\n",
           ev.pid, ev.status, ev.signal);
   ts = now_ticks();
