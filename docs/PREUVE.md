@@ -26,7 +26,7 @@ déterminisme. Chaîne complète : **moins d'une minute**.
 | Cœur portable | S8 | `.github/checks/purity_guard.py` | `core/` sans `fopen`, horloge, socket, allocation ni en-tête QNX ; `host/` en stdlib seule |
 | Garde de taille | S9 | `.github/checks/size_guard.py` | 49 fichiers, tous < 500 lignes, 113 fonctions C et les fonctions Python < 50 lignes de code |
 | Budget CI | S9 | `.github/ci-budget/check_timeouts.py` | chaque job ≤ 5 min ; **run `ci` réel : 52 s** |
-| CI sur runner | S9 | `gh run list --repo BaptisteFaisy/replique` | `ci` **vert** (52 s), `ci-budget` **vert** (40 s) |
+| CI sur runner | S9 | `gh run list --repo Tradoooo/replique` | `ci` **vert** (52 s), `ci-budget` **vert** (40 s) |
 
 ## 2. Les artefacts gelés
 
