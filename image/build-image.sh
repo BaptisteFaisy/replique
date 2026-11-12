@@ -24,7 +24,6 @@ export QNX_HOST QNX_TARGET
 PATH="$QNX_HOST/usr/bin:$PATH"
 export PATH
 
-# Racine des sources : par défaut le dépôt (ce script vit dans image/).
 SRC="${REPLIQUE_SRC:-$(cd "$(dirname "$0")/.." && pwd)}"
 WORK="${1:-$HOME/replique-img}"
 mkdir -p "$WORK"
@@ -34,13 +33,14 @@ echo "== 1/4 compilation des binaires du projet (qcc, QNX 8.0) =="
 ( cd "$SRC"
   qcc -V gcc_ntox86_64 -Wall -Wextra -Werror -o "$WORK/declic" \
       target/declic/declic_qnx.c target/declic/declic_watch.c \
-      target/declic/declic_portable.c target/declic/sha256_portable.c \
-      -Itarget/declic
+      target/declic/declic_exec.c target/declic/declic_portable.c \
+      target/declic/sha256_portable.c -Itarget/declic
   for bug in deadlock prio_inversion race; do
       qcc -V gcc_ntox86_64 -Wall -Wextra -Werror \
           -o "$WORK/bug-$bug" "image/bugs/$bug.c"
   done )
 cp "$WORK/bug-prio_inversion" "$WORK/bug-prio-inversion"
+cp "$SRC/image/demo.sh" .
 
 echo "== 2/4 IFS (mkifs) =="
 sed "s|\$QNX_TARGET|$QNX_TARGET|g" "$SRC/image/buildfile" > image.resolved

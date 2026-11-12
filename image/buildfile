@@ -47,18 +47,10 @@
     on -d -t /dev/con1 -e HOME=/proc/boot ksh -l
     on -d -t /dev/ser1 -e HOME=/proc/boot ksh -l
     # --- démonstration Déclic (essai S7) : mode GLOBAL ----------------
-    # Déclic archive le premier processus qui meurt ; le résumé (pid, signal,
-    # sections, SHA-256) s'affiche sur la console série.
-    echo "=== demo Declic : mode global ==="
-    declic --out /dev/shmem/declic &
-    sleep 1
-    echo "=== bug-deadlock : demarrage puis interblocage ==="
-    bug-deadlock &
-    sleep 3
-    echo "=== slay bug-deadlock : terminaison du processus ==="
-    slay bug-deadlock
-    sleep 8
-    echo "=== fin de la demo ==="
+    # Exécutée par ksh via `on` : le shell de démarrage ne rend pas $! (on
+    # surveillait donc le `echo` d'annonce au lieu du bogue). demo.sh gère
+    # tracelogger + slogger2 + bogue + Déclic, et surveille le VRAI pid.
+    on -d -t /dev/ser1 -e HOME=/proc/boot ksh -c /proc/boot/demo.sh
 }
 
 # ------------------------------------------------------------------- fichiers
@@ -74,6 +66,10 @@ ksh = bin/ksh
 pidin = bin/pidin
 slay = bin/slay
 slog2info = bin/slog2info
+slogger2 = bin/slogger2
+mount = bin/mount
+mkqnx6fs = sbin/mkqnx6fs
+devb-ram = sbin/devb-ram
 tracelogger = usr/sbin/tracelogger
 dumper = usr/sbin/dumper
 
@@ -94,6 +90,10 @@ libexpat.so.2 = lib/libexpat.so.2
 libregex.so.1 = lib/libregex.so.1
 libjson.so.1 = lib/libjson.so.1
 
+cam-disk.so = lib/dll/cam-disk.so
+fs-qnx6.so = lib/dll/fs-qnx6.so
+io-blk.so = lib/dll/io-blk.so
+
 toybox = usr/bin/toybox
 [type=link] /proc/boot/echo=/proc/boot/toybox
 [type=link] /proc/boot/cat=/proc/boot/toybox
@@ -102,8 +102,13 @@ toybox = usr/bin/toybox
 [type=link] /proc/boot/ls=/proc/boot/toybox
 [type=link] /proc/boot/head=/proc/boot/toybox
 [type=link] /proc/boot/kill=/proc/boot/toybox
+[type=link] /proc/boot/base64=/proc/boot/toybox
+[type=link] /proc/boot/xxd=/proc/boot/toybox
+[type=link] /proc/boot/md5sum=/proc/boot/toybox
+[type=link] /proc/boot/wc=/proc/boot/toybox
 
 declic = ./declic
+demo.sh = ./demo.sh
 bug-deadlock = ./bug-deadlock
 bug-prio-inversion = ./bug-prio-inversion
 bug-race = ./bug-race

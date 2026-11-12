@@ -22,7 +22,7 @@ CPED     := -Wpedantic
 CPPFLAGS := -I.
 
 PORTABLE_OBJ := declic_portable.o sha256_portable.o
-QNX_OBJ      := declic_qnx.o declic_watch.o
+QNX_OBJ      := declic_qnx.o declic_watch.o declic_exec.o
 OBJ          := $(PORTABLE_OBJ) $(QNX_OBJ)
 BIN          := declic
 
@@ -48,6 +48,10 @@ declic_qnx.o: declic_qnx.c declic.h declic_watch.h sha256_portable.h
 
 # Observation des terminaisons (essai E3) : scrutation /proc + `pidin dead`.
 declic_watch.o: declic_watch.c declic_watch.h
+	$(CC) $(CSTD_QNX) $(COPT) $(CWARN) $(CPPFLAGS) -c $< -o $@
+
+# Capture de sortie de commande sans pipe(2) (indisponible sur QNX 8.0).
+declic_exec.o: declic_exec.c declic_exec.h
 	$(CC) $(CSTD_QNX) $(COPT) $(CWARN) $(CPPFLAGS) -c $< -o $@
 
 clean:
