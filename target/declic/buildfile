@@ -1,0 +1,15 @@
+# buildfile — installation de Déclic dans l'image QNX (outil mkifs).
+#
+# Ce fragment est inclus par le buildfile principal de l'image invitée
+# (image/buildfile). Il ne fait que copier le binaire « declic » construit
+# par `make target-qnx` dans le système de fichiers de l'image.
+#
+# À VÉRIFIER SUR LE SDP 8.0 : la syntaxe exacte des sections [image] et
+# [+script] de mkifs, et le nom de la section qui porte le dossier de sortie
+# des archives (/var/log/declic).
+
+[image]
+format=ifs
+
+[+script]
+declic=declic

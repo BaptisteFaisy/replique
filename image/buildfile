@@ -1,0 +1,47 @@
+# buildfile — image invitée QNX 8.0 pour la démo Réplique (outil mkifs).
+#
+# Cette image démarre sous QEMU (x86_64) et contient :
+#   - le noyau et les pilotes de base (startup-bios, devc, procnto) ;
+#   - tracelogger (le tampon de trace circulaire) et dumper (les core dumps) ;
+#   - Déclic, le démon de figeage (construit par `make target-qnx`) ;
+#   - les trois générateurs de bogues de scenarios/SPEC.md ;
+#   - le journal système (slog2 / sl-pinfo.so).
+#
+# AVERTISSEMENT D'HONNÊTETÉ : le SDP 8.0 n'est pas installé sur la machine
+# de développement. La syntaxe ci-dessous suit la forme publique des
+# buildfiles mkifs ; chaque point incertain est marqué « À VÉRIFIER ».
+# Le point de départ recommandé est le buildfile d'exemple fourni par le SDP
+# (target/qnx6/... ou le paquet d'exemples QEMU) : il faut partir de là et
+# ajouter les lignes Déclic + bogues, plutôt que d'inventer une image.
+
+[image]
+format=ifs
+
+[+script]
+# --- démarrage et noyau (x86_64) ---
+# À VÉRIFIER SUR LE SDP 8.0 : nom exact des fichiers de démarrage x86_64
+# (startup-bios, devc-82564.so, procnto-x86_64.so) et leur emplacement.
+startup-bios=startup-bios
+devc-82564.so=devc-82564.so
+procnto-x86_64.so=procnto-x86_64.so
+
+# --- journal système ---
+# À VÉRIFIER SUR LE SDP 8.0 : nom exact du service slog2 (sl-pinfo.so ?)
+# et la commande de démarrage associée.
+sl-pinfo.so=sl-pinfo.so
+
+# --- trace noyau et vidage d'incident ---
+# À VÉRIFIER SUR LE SDP 8.0 : tracelogger et dumper sont-ils fournis tels
+# quels dans le SDP 8.0, et quels arguments leur passer au démarrage.
+tracelogger=tracelogger
+dumper=dumper
+
+# --- Déclic (démon de figeage) ---
+# Construit par : make target-qnx  →  target/declic/declic
+declic=../target/declic/declic
+
+# --- générateurs de bogues (scenarios/SPEC.md §2, §3, §4) ---
+# Construits par : cd image/bugs && make -f Makefile.qnx
+deadlock=bugs/deadlock
+prio_inversion=bugs/prio_inversion
+race=bugs/race

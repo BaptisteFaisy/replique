@@ -1,0 +1,50 @@
+# Makefile.qnx — construction de Déclic pour QNX 8.0 (SDP requis).
+#
+# Lancé par la cible `target-qnx` du Makefile racine :
+#     make target-qnx      →  $(MAKE) -C target/declic -f Makefile.qnx
+#
+# `make test` n'exige JAMAIS ce fichier : la logique portable est compilée
+# et testée sur PC (build/declic-test).
+
+QCC      ?= qcc
+TARGET   := gcc_ntox86_64
+CC       := $(QCC) -V$(TARGET)
+CSTD     := -std=c11
+# La colle QNX utilise gnu11 : en mode strict ISO (-std=c11), la bibliothèque
+# masque les déclarations POSIX (popen, clock_gettime, sigaction, posix_spawn,
+# waitpid). La logique portable, elle, reste en C11 strict + -Wpedantic.
+CSTD_QNX := -std=gnu11
+COPT     := -O2 -g
+CWARN    := -Wall -Wextra -Werror
+# -Wpedantic est appliqué à la logique PORTABLE uniquement : les en-têtes
+# du SDP ne sont pas nécessairement « pedantic » (extensions QNX).
+CPED     := -Wpedantic
+CPPFLAGS := -I.
+
+PORTABLE_OBJ := declic_portable.o sha256_portable.o
+QNX_OBJ      := declic_qnx.o
+OBJ          := $(PORTABLE_OBJ) $(QNX_OBJ)
+BIN          := declic
+
+.PHONY: all declic clean
+
+all: declic
+
+declic: $(BIN)
+
+$(BIN): $(OBJ)
+	$(CC) $(CSTD_QNX) $(COPT) $(CWARN) -o $@ $(OBJ)
+
+# Logique portable : mêmes drapeaux que la compilation PC (Makefile racine).
+declic_portable.o: declic_portable.c declic.h sha256_portable.h
+	$(CC) $(CSTD) $(COPT) $(CWARN) $(CPED) $(CPPFLAGS) -c $< -o $@
+
+sha256_portable.o: sha256_portable.c sha256_portable.h
+	$(CC) $(CSTD) $(COPT) $(CWARN) $(CPED) $(CPPFLAGS) -c $< -o $@
+
+# Colle QNX : uniquement sous __QNX__ (jamais compilée sur PC).
+declic_qnx.o: declic_qnx.c declic.h sha256_portable.h
+	$(CC) $(CSTD_QNX) $(COPT) $(CWARN) $(CPPFLAGS) -c $< -o $@
+
+clean:
+	rm -f $(OBJ) $(BIN)
