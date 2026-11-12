@@ -50,7 +50,10 @@
     # Exécutée par ksh via `on` : le shell de démarrage ne rend pas $! (on
     # surveillait donc le `echo` d'annonce au lieu du bogue). demo.sh gère
     # tracelogger + slogger2 + bogue + Déclic, et surveille le VRAI pid.
-    on -d -t /dev/ser1 -e HOME=/proc/boot ksh -c /proc/boot/demo.sh
+    # La demo tourne sur la console VGA : c'est elle que la vitrine web
+    # capture, donc la preuve visible a l'ecran. Le port serie garde un
+    # shell interactif.
+    on -d -t /dev/con1 -e HOME=/proc/boot ksh -c /proc/boot/demo.sh
 }
 
 # ------------------------------------------------------------------- fichiers
