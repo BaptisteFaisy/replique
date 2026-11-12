@@ -4,17 +4,4 @@ ACPI table not found (0x4746434d)
 System behaves poorly without PCID support.
 overriding mask for controller 2, vector_base 0
 Replique - invite QNX 8.0 (demo Declic)
-=== demo Declic : mode global ===
-# === bug-deadlock : demarrage puis interblocage ===
-bug: deadlock (scenarios/SPEC.md §2) — demarrage
-declic: termbug: tid 102 (prio 60) prend le mutex 32
-inaison observée du pid 12295 (statut 0, signal 0)
-declic: tracelogger introuvable (--trace-pid ?)
-declic: pid=12295 signal=0 status=0
-declic: archive 545 octets sha256=426e24e49503d3901c63bcdf623e14fa81358d3740cb9238df9ee2dabef45df3
-declic: sections trace=0 pidin=0 slog2=0 core=0 manifest=113
-bug: tid 101 (prio 50) prend le mutex 16
-bug: tid 101 veut le mutex 32 (bloque)
-bug: tid 102 veut le mutex 16 (bloque)
-=== slay bug-deadlock : terminaison du processus ===
-=== fin de la demo ===
+# 
