@@ -58,6 +58,20 @@ Python divergent). Exemple :
 | `SCHED_SPORADIC` et partitions adaptatives | **Non modélisés** | le rejeu signale `sporadic-not-modelled` (jamais un rejeu faux) |
 | Différentiel contre `traceprinter` | **Impossible ici** | `traceprinter` absent (licence SDP) ; `tests/differential_traceprinter.sh` sort 0 avec un avertissement et jouera dès qu'un SDP est présent |
 
+### Ce qui a été vérifié sur une vraie cible QNX 8.0 (serveur `r630`, 12/11/2026)
+
+Le SDP 8.0 est installé sur `r630` (`~/qnx800`). Ce qui y a été établi, source
+QNX à l'appui :
+
+| Fait | Conséquence pour le projet |
+|---|---|
+| `qcc -V gcc_ntox86_64` compile **Déclic** et les trois générateurs de bogues en `-Werror` | la partie cible n'est pas de la fiction : elle compile contre le vrai SDK |
+| **le HAM n'existe plus** dans le SDP 8.0 (ni en-tête `<ham/ham.h>`, ni binaire) | le déclencheur de Déclic est la scrutation de `/proc/<pid>`, plus le signal récupéré par `pidin dead` |
+| le service de noms a disparu aussi (pas de `<name.h>`) | pas de crochet « message de terminaison » : d'où `target/declic/declic_watch.c` |
+| `tracelogger`, `traceprinter`, `dumper`, `pidin`, `slog2info` sont livrés | les quatre sources de l'archive RDA1 existent sur la cible |
+| la chaîne `mkifs` → `mkxfs -t qnx6fsimg` → `diskimage` produit un disque amorçable, et QEMU l'amorce jusqu'à « QNX v1.2d Boot Loader: qnx_sdp.ifs » | l'image de `image/` est constructible ; il reste la main tendue du chargeur à l'IFS (voir `image/README.md`) |
+| sans `io-blk.so` et `fs-qnx6.so` dans l'IFS, procnto ne monte rien et le boot s'arrête | ces deux modules sont dans `image/buildfile` |
+
 ## 4. Comment reproduire
 
 ```sh

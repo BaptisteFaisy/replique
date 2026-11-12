@@ -22,7 +22,7 @@ CPED     := -Wpedantic
 CPPFLAGS := -I.
 
 PORTABLE_OBJ := declic_portable.o sha256_portable.o
-QNX_OBJ      := declic_qnx.o
+QNX_OBJ      := declic_qnx.o declic_watch.o
 OBJ          := $(PORTABLE_OBJ) $(QNX_OBJ)
 BIN          := declic
 
@@ -43,7 +43,11 @@ sha256_portable.o: sha256_portable.c sha256_portable.h
 	$(CC) $(CSTD) $(COPT) $(CWARN) $(CPED) $(CPPFLAGS) -c $< -o $@
 
 # Colle QNX : uniquement sous __QNX__ (jamais compilée sur PC).
-declic_qnx.o: declic_qnx.c declic.h sha256_portable.h
+declic_qnx.o: declic_qnx.c declic.h declic_watch.h sha256_portable.h
+	$(CC) $(CSTD_QNX) $(COPT) $(CWARN) $(CPPFLAGS) -c $< -o $@
+
+# Observation des terminaisons (essai E3) : scrutation /proc + `pidin dead`.
+declic_watch.o: declic_watch.c declic_watch.h
 	$(CC) $(CSTD_QNX) $(COPT) $(CWARN) $(CPPFLAGS) -c $< -o $@
 
 clean:

@@ -1,0 +1,9 @@
+# image/disk.layout — partitionnement du disque invité QNX 8.0.
+#
+#   diskimage -c image/disk.layout -b $QNX_TARGET/x86_64/boot/sys/ipl-diskpc1 \
+#             -o replique-disk.img
+#
+# Partition 1 : amorçable, type 177 (QNX boot), contient le chargeur et l'IFS.
+
+[sector_size=512 cylinders=99271161 sectors_per_track=1 heads=1 start_at_cylinder=1]
+[partition=1 boot=true type=177 num_sectors=1688864] "boot.part"

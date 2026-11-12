@@ -88,3 +88,31 @@ Le rejeu est purement fonctionnel : aucune horloge, aucun aléa, aucune allocati
 | Différentiel C↔Python | aucun essai requis | — |
 | Différentiel traceprinter | portée réduite sans SDP | E1 |
 | Corrélation core dump (C4) | non implémentée v1 | E5 |
+
+
+---
+
+## Vérifications sur cible réelle (serveur `r630`, 12/11/2026)
+
+SDP QNX 8.0 installé dans `~/qnx800` sur le serveur `r630` (Debian 13). Le
+code cible a été compilé et l'image construite **sur cette machine** :
+
+| Vérification | Commande | Résultat |
+|---|---|---|
+| Déclic compile (QNX 8.0, `-Werror`) | `qcc -V gcc_ntox86_64 -std=gnu11 -Wall -Wextra -Werror -Itarget/declic -o declic target/declic/declic_qnx.c target/declic/declic_watch.c target/declic/declic_portable.c target/declic/sha256_portable.c` | **OK** (32 Ko) |
+| Générateurs de bogues (QNX 8.0) | `qcc -V gcc_ntox86_64 -Wall -Wextra -Werror -o bug-deadlock image/bugs/deadlock.c` | **OK** pour les trois |
+| IFS | `mkifs -v -o . image.resolved ifs.bin` | **OK** (3 Mo) |
+| Partition de boot | `mkxfs -t qnx6fsimg -o . boot_part.resolved boot.part` | **OK** (256 Mo) |
+| Disque amorçable | `diskimage -p -s 163840 -c layout.txt -o replique-disk.img -b $QNX_TARGET/x86_64/boot/sys/ipl-diskpc1-nomsg` | **OK** (268 Mo) |
+| Amorçage sous QEMU | `qemu-system-x86_64 -drive file=replique-disk.img,format=raw,if=ide ...` | SeaBIOS → « Booting from Hard Disk… » → « QNX v1.2d Boot Loader: qnx_sdp.ifs » |
+
+**Ce qui reste** : le chargeur rend la main à l'IFS. Le bisect est fait — l'image
+*officielle* du SDP, placée dans le même disque, s'arrête au même endroit : le
+blocage est dans la ligne de commande QEMU ou dans le partitionnement (le
+quickstart officiel a trois partitions, le nôtre une), pas dans l'IFS du projet.
+Pistes et détails dans `image/README.md`.
+
+**Essai E3, tranché pour de bon** : le SDP 8.0 n'a plus de HAM ni de service de
+noms. Le déclencheur de terminaison de Déclic est donc la scrutation de
+`/proc/<pid>`, avec `pidin dead` pour le signal — c'est implémenté et compilé
+dans `target/declic/declic_watch.c`.

@@ -1,0 +1,18 @@
+# image/boot_part.build — partition de démarrage (QNX 8.0, x86_64).
+#
+# Elle contient le chargeur multiboot et l'IFS du projet ; c'est elle que le
+# secteur d'amorçage (ipl-diskpc1) charge au démarrage sous QEMU.
+#
+#   mkifs -o boot.part image/boot_part.build
+#
+# L'IFS doit s'appeler ifs.bin dans le répertoire de construction.
+
+[search=.:$QNX_TARGET/x86_64:$QNX_TARGET/x86_64/boot/sys:]
+
+[+dupignore]
+
+# L'IFS du projet : il contient procnto, le shell et les binaires Déclic.
+.boot/qnx_sdp.ifs=ifs.bin
+
+# Le chargeur multiboot (amorcé par le secteur d'amorçage).
+multiboot.boot = boot/sys/multiboot.boot
