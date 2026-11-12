@@ -1,0 +1,29 @@
+# systemd/replique-ems-web.service — MODÈLE d'unité systemd UTILISATEUR.
+#
+# Copier puis adapter (remplacer <projet>, ajuster le port) :
+#   cp systemd/replique-ems-web.service ~/.config/systemd/user/<projet>-web.service
+#   systemctl --user daemon-reload && systemctl --user enable --now <projet>-web.service
+#
+# La vitrine lit l'écran VGA via le moniteur QEMU (socket) et la console via le
+# journal série : ces trois chemins doivent être IDENTIQUES à ceux de l'unité
+# QEMU jumelle (replique-ems-qemu.service).
+#
+# NOTE — %h n'est PAS développé dans Environment= (systemd) : chemins absolus.
+# Adaptez /home/baptiste à votre compte et changez le port par projet.
+[Unit]
+Description=Vitrine HTTP — <projet> (écran, console, touches)
+After=<projet>-qemu.service
+
+[Service]
+Type=simple
+Environment=QNX_EMS_SERIE=/home/baptiste/<projet>-demo/serial.log
+Environment=QNX_EMS_MON=/home/baptiste/<projet>-demo/mon.sock
+Environment=QNX_EMS_PPM=/home/baptiste/<projet>-demo/web-vga.ppm
+Environment=QNX_EMS_PORT=8091
+Environment=QNX_EMS_TITRE=Démo QNX 8.0 — <projet>
+ExecStart=/usr/bin/python3 %h/Bureau/qnx-emu/web.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
