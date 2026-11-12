@@ -3,6 +3,7 @@
  * service de noms ayant disparu du SDP 8.0). */
 #include "declic_watch.h"
 
+#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,39 +33,27 @@ static void nap_ms(unsigned ms)
   nanosleep(&ts, NULL);
 }
 
-/* Exécute `pidin -F "%a"` et rend la liste des pid. */
+/* Liste des pid en scroutant /proc (plus fiable que le format pidin, et sans
+ * dépendre d'un shell) : chaque entrée numérique de /proc est un pid. */
 unsigned declic_list_pids(uint32_t *out, unsigned cap)
 {
-  static char buf[DECLIC_BUF];
-  size_t len = 0u;
-  size_t i = 0u;
+  DIR *dir = opendir("/proc");
+  struct dirent *entry;
   unsigned n = 0u;
-  FILE *pipe;
 
-  pipe = popen("pidin -F \"%a\" 2>/dev/null", "r");
-  if (!pipe) {
+  if (!dir) {
     return 0u;
   }
-  len = fread(buf, 1u, sizeof buf - 1u, pipe);
-  pclose(pipe);
-  while (i < len && n < cap) {
-    size_t j = i;
-    char line[64];
+  while (n < cap && (entry = readdir(dir)) != NULL) {
+    char *end = NULL;
+    unsigned long value = strtoul(entry->d_name, &end, 10);
 
-    while (j < len && buf[j] != '\n') {
-      ++j;
+    if (end != entry->d_name && *end == '\0' && value > 0u &&
+        value < UINT32_MAX) {
+      out[n++] = (uint32_t)value;
     }
-    if (j - i > 0u && j - i < sizeof line) {
-      unsigned int v = 0u;
-
-      memcpy(line, buf + i, j - i);
-      line[j - i] = '\0';
-      if (sscanf(line, "%i", &v) == 1 && v > 0u) {
-        out[n++] = (uint32_t)v;
-      }
-    }
-    i = (j < len) ? j + 1u : len;
   }
+  closedir(dir);
   return n;
 }
 

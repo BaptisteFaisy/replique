@@ -1,19 +1,14 @@
 # image/buildfile — image invitée QNX 8.0 (x86_64) pour la démo Déclic.
 #
-# Construite avec le SDP 8.0 :
+# Construite avec le SDP 8.0 (image/build-image.sh s'en charge) :
 #   export QNX_HOST=$SDP/host/linux/x86_64
 #   export QNX_TARGET=$SDP/target/qnx
-#   mkifs -v -o . <buildfile rendu> replique.ifs
+#   sh image/build-image.sh
 #
-# Contenu : le noyau (procnto), un shell sur la console série, les outils
-# QNX utiles à l'analyse (pidin, slog2info, tracelogger, dumper) et les
-# binaires du projet : Déclic + les trois générateurs de bogues.
-#
-# La liste de recherche (search) commence par le répertoire courant : les
-# binaires du projet doivent y avoir été copiés (voir image/README.md).
+# Démarrage sous QEMU (voir image/README.md) : -kernel ifs.bin, --cpu max,
+# disque virtuel absent (la démo est sans disque, le résumé d'archive va sur
+# la console série).
 
-# Racine de recherche : le repertoire courant (binaires du projet) puis la
-# racine de la cible QNX (les entrees du fichier sont relatives a ces racines).
 [search=.:$QNX_TARGET/x86_64:$QNX_TARGET/x86_64/boot/sys:]
 
 [+dupignore]
@@ -43,47 +38,71 @@
     LD_LIBRARY_PATH=/proc/boot:/system/lib:/system/lib/dll
     HOME=/proc/boot
     TERM=qansi
-    # Pilotes de peripheriques : sans eux, ni la console VGA ni le port
-    # serie n'existent (constate au premier boot : l'IFS s'arretait sur
-    # « QNX v1.2d Boot Loader »).
-    devc-con -n
-    devc-ser8250 -e 115200
+    devc-con
+    devc-ser8250 -e
     waitfor /dev/ser1
-    # Pilote de disque + modules de systeme de fichiers : sans eux, procnto
-    # ne peut pas monter la racine et le boot s'arrete aussitot (constate au
-    # deuxieme boot : l'IFS demarrait mais ne rendait pas la main).
-    devb-eide cam user=20:20 blk cache=64M,auto=partition,vnode=2000,ncache=2000,commit=low
-    waitfor /dev/hd0
     display_msg "Replique - invite QNX 8.0 (demo Declic)"
-    # Le dumper ecrit les core dumps dans /var/dumper/cores (essai E5).
-    dumper -U 30:30 -d /var/dumper -M 1000 -D cores
-    # Shell sur la console serie : c'est par la que la demo se pilote.
+    # Deux consoles : la serie (texte, capture) et la VGA (capture d ecran
+    # pour la vitrine web). Le meme shell sur les deux.
+    on -d -t /dev/con1 -e HOME=/proc/boot ksh -l
     on -d -t /dev/ser1 -e HOME=/proc/boot ksh -l
+    # --- démonstration Déclic (essai S7) : mode GLOBAL ----------------
+    # Déclic archive le premier processus qui meurt ; le résumé (pid, signal,
+    # sections, SHA-256) s'affiche sur la console série.
+    echo "=== demo Declic : mode global ==="
+    declic --out /dev/shmem/declic &
+    sleep 1
+    echo "=== bug-deadlock : demarrage puis interblocage ==="
+    bug-deadlock &
+    sleep 3
+    echo "=== slay bug-deadlock : terminaison du processus ==="
+    slay bug-deadlock
+    sleep 8
+    echo "=== fin de la demo ==="
 }
 
 # ------------------------------------------------------------------- fichiers
-# Le chargeur multiboot est exige par la section [virtual=x86_64,multiboot].
 multiboot.boot = boot/sys/multiboot.boot
 procnto-smp-instr = boot/sys/procnto-smp-instr
 startup-x86 = boot/sys/startup-x86
 
 devc-con = sbin/devc-con
 devc-ser8250 = sbin/devc-ser8250
-devb-eide = sbin/devb-eide
-io-blk.so = lib/dll/io-blk.so
-fs-qnx6.so = lib/dll/fs-qnx6.so
 on = bin/on
 sh = bin/sh
 ksh = bin/ksh
 pidin = bin/pidin
+slay = bin/slay
 slog2info = bin/slog2info
 tracelogger = usr/sbin/tracelogger
 dumper = usr/sbin/dumper
 
 ldqnx-64.so.2 = usr/lib/ldqnx-64.so.2
 libc.so.6 = lib/libc.so.6
+libgcc_s.so.1 = lib/libgcc_s.so.1
+libm.so.3 = lib/libm.so.3
+libtracelog.so.1 = lib/libtracelog.so.1
+libslog2.so.1 = lib/libslog2.so.1
+libslog2parse.so.1 = lib/libslog2parse.so.1
+libsecpol.so.1 = lib/libsecpol.so.1
+libcam.so.2 = lib/libcam.so.2
+libz.so.2 = usr/lib/libz.so.2
+libfsnotify.so.1 = lib/libfsnotify.so.1
+libsocket.so.4 = lib/libsocket.so.4
+libcrypto.so.3 = lib/libcrypto.so.3
+libexpat.so.2 = lib/libexpat.so.2
+libregex.so.1 = lib/libregex.so.1
+libjson.so.1 = lib/libjson.so.1
 
-# Binaires du projet (copies dans le repertoire du buildfile).
+toybox = usr/bin/toybox
+[type=link] /proc/boot/echo=/proc/boot/toybox
+[type=link] /proc/boot/cat=/proc/boot/toybox
+[type=link] /proc/boot/sleep=/proc/boot/toybox
+[type=link] /proc/boot/mkdir=/proc/boot/toybox
+[type=link] /proc/boot/ls=/proc/boot/toybox
+[type=link] /proc/boot/head=/proc/boot/toybox
+[type=link] /proc/boot/kill=/proc/boot/toybox
+
 declic = ./declic
 bug-deadlock = ./bug-deadlock
 bug-prio-inversion = ./bug-prio-inversion
