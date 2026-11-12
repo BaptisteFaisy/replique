@@ -1,0 +1,33 @@
+# systemd/replique-ems-qemu.service — MODÈLE d'unité systemd UTILISATEUR.
+#
+# Copier puis adapter (remplacer <projet>, ajuster les chemins) :
+#   cp systemd/replique-ems-qemu.service ~/.config/systemd/user/<projet>-qemu.service
+#   systemctl --user daemon-reload && systemctl --user enable --now <projet>-qemu.service
+#
+# L'invité QEMU tourne au PREMIER PLAN (le service le garde en vie via
+# Restart=always). web.py se branche dessus par le socket du moniteur et le
+# journal de la série : les chemins ci-dessous doivent coller à l'unité web.
+#
+# NOTE — %h n'est PAS développé dans Environment= (systemd) : on ne l'utilise
+# que dans ExecStart, où la substitution a bien lieu.
+[Unit]
+Description=Invite QNX 8.0 — <projet> (QEMU)
+After=network.target
+
+[Service]
+Type=simple
+# QEMU : celui du banc QNX 7.1 (le SDP 8.0 n'en livre pas pour l'hôte x86_64).
+# Adaptez --qemu / --prefixe si vous disposez d'un autre QEMU.
+ExecStart=%h/Bureau/qnx-emu/guest-qemu.sh \
+    --ifs %h/<projet>-img/ifs.bin \
+    --serie %h/<projet>-demo/serial.log \
+    --moniteur %h/<projet>-demo/mon.sock \
+    --memoire 2048 --cpu max --smp 4 \
+    --qemu %h/qnx71-vm/qprefix/usr/bin/qemu-system-x86_64 \
+    --prefixe %h/qnx71-vm/qprefix
+Restart=always
+RestartSec=10
+KillMode=mixed
+
+[Install]
+WantedBy=default.target

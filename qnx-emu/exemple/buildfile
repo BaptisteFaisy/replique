@@ -1,0 +1,141 @@
+# exemple/buildfile — SQUELETTE d'un invité QNX 8.0 (x86_64), prêt à copier.
+#
+# Copiez ce fichier dans VOTRE projet (par exemple image/buildfile), adaptez la
+# section « fichiers » (vos binaires) et le scénario de démarrage, puis :
+#
+#   build-image.sh --projet monprojet --buildfile image/buildfile \
+#                  --sources "monprojet:src/monprojet.c"
+#
+# Contenu de l'IFS :
+#   - le noyau (procnto-smp-instr) et son script de démarrage (startup-x86) ;
+#   - les pilotes de console : devc-con (VGA) et devc-ser8250 (série) ;
+#   - les modules de blocs et de système de fichiers (io-blk.so, fs-qnx6.so) ;
+#   - un shell (ksh) et les outils d'analyse (pidin, slog2info, tracelogger) ;
+#   - VOS binaires, pris par `./nom` : le chemin de recherche commence par le
+#     répertoire courant, les binaires doivent y avoir été compilés.
+#
+# PIÈGE MAJEUR — le disque ne boot pas. L'IFS se lance par `-kernel` sous
+# QEMU (cf. guest-qemu.sh) ; en disque, le chargeur QNX s'arrête sur
+# « QNX v1.2d Boot Loader ».
+
+# Racine de recherche : le répertoire courant (binaires du projet), puis la
+# racine de la cible QNX (les entrées du fichier sont relatives à ces racines).
+[search=.:$QNX_TARGET/x86_64:$QNX_TARGET/x86_64/boot/sys:]
+
+# [+]optional : les entrées introuvables sont ignorées. Pratique, mais cela
+# MASQUE une faute de frappe — si l'IFS ne démarre pas, commentez d'abord
+# cette ligne pour voir les fichiers manquants.
+[+dupignore]
+[+optional]
+
+[uid=0 gid=0 dperms=0555 perms=0555]
+
+[image=20m]
+[virtual=x86_64,multiboot ] boot = {
+    startup-x86 -D8250..115200 -zz -f 0,0,1000M
+    PATH=/proc/boot:/system/bin
+    LD_LIBRARY_PATH=/proc/boot:/system/lib:/system/lib/dll
+    [+keeplinked uid=0 gid=0 perms=0700 ] CONFIG_PATH=/proc/boot:/system/etc procnto-smp-instr -mr -d 022 -u 066 -F 2000
+}
+
+# ------------------------------------------------------------------ démarrage
+# La RACINE de l'IFS est montée sur /proc/boot : c'est elle que contient le
+# PATH. Donc `xxx = bin/xxx` place le binaire À LA RACINE de l'image
+# (proc/boot/xxx), et il est appelable directement (`xxx`).
+[+script] startup-script = {
+    # LIEN INDISPENSABLE : l'interpréteur ELF des binaires 64 bits est
+    # /usr/lib/ldqnx-64.so.2. Sans ce lien, procnto ne résout pas le chargeur
+    # et TOUT binaire échoue avec « Unable to start "xxx" (83) » (ELIBACC :
+    # can't access shared library).
+    procmgr_symlink /proc/boot/ldqnx-64.so.2 /usr/lib/ldqnx-64.so.2
+    # Confort : sh/ksh, et les outils d'analyse sous /bin (optionnels).
+    procmgr_symlink /proc/boot/ksh /bin/sh
+    procmgr_symlink /proc/boot/ksh /bin/ksh
+    procmgr_symlink /proc/boot/pidin /bin/pidin
+    procmgr_symlink /proc/boot/slog2info /bin/slog2
+    procmgr_symlink /proc/boot/tracelogger /bin/tracelogger
+    # PIÈGE — sans disque, /var est un lien mort : /tmp pointe dans le vide.
+    # Écrire plutôt dans /dev/shmem (volatile) ou monter un disque RAM
+    # (devb-ram) pour disposer d'un vrai système de fichiers.
+    procmgr_symlink /var/tmp /tmp
+    PATH=/proc/boot:/system/bin
+    LD_LIBRARY_PATH=/proc/boot:/system/lib:/system/lib/dll
+    HOME=/proc/boot
+    TERM=qansi
+    # --- pilotes de périphériques -----------------------------------------
+    devc-con
+    devc-ser8250 -e
+    waitfor /dev/ser1
+    display_msg "QNX 8.0 - invite <projet>"
+    # --- deux consoles : VGA (capture pour la vitrine) et série (scénario) --
+    on -d -t /dev/con1 -e HOME=/proc/boot ksh -l
+    on -d -t /dev/ser1 -e HOME=/proc/boot ksh -l
+    # --- le scénario de la démo -------------------------------------------
+    # PIÈGE — le shell de démarrage [script] n'a NI pipes NI redirections, et
+    # $! n'y fonctionne pas : pour un scénario complexe, écrire un script et
+    # le lancer par `ksh -c "<script>"`.
+    echo "=== invite <projet> prete ==="
+    hello
+}
+
+# ------------------------------------------------------------------- fichiers
+# Le chargeur multiboot est exigé par la section [virtual=x86_64,multiboot].
+multiboot.boot = boot/sys/multiboot.boot
+procnto-smp-instr = boot/sys/procnto-smp-instr
+startup-x86 = boot/sys/startup-x86
+
+# Pilotes de périphériques
+devc-con = sbin/devc-con
+devc-ser8250 = sbin/devc-ser8250
+# Modules de blocs et de système de fichiers : SANS eux, procnto ne monte
+# aucun système de fichiers — l'IFS démarre mais ne rend pas la main.
+io-blk.so = lib/dll/io-blk.so
+fs-qnx6.so = lib/dll/fs-qnx6.so
+
+# Shell et outils d'analyse (à la racine de l'IFS : appelables par leur nom)
+on = bin/on
+sh = bin/sh
+ksh = bin/ksh
+slay = bin/slay
+pidin = bin/pidin
+slog2info = bin/slog2info
+tracelogger = usr/sbin/tracelogger
+dumper = usr/sbin/dumper
+toybox = usr/bin/toybox
+
+# toybox est un binaire MULTI-APPLETS (le SDP 8.0 n'embarque plus de coreutils
+# séparés) : il faut un lien par applet, À LA RACINE de l'IFS (c'est elle le
+# PATH : /proc/boot). Un lien /bin/xxx ne sert à rien — il n'y a pas de /bin.
+[type=link] /proc/boot/cat=/proc/boot/toybox
+[type=link] /proc/boot/echo=/proc/boot/toybox
+[type=link] /proc/boot/head=/proc/boot/toybox
+[type=link] /proc/boot/ls=/proc/boot/toybox
+[type=link] /proc/boot/mkdir=/proc/boot/toybox
+[type=link] /proc/boot/sleep=/proc/boot/toybox
+# PIÈGE — toybox n'a PAS d'applet `kill` : le terme d'un processus est `slay`
+# (binaire QNX, ci-dessus). Un lien kill -> toybox existe mais échoue à
+# l'exécution : n'en créez pas.
+
+# Bibliothèques partagées.
+# PIÈGE — libz.so.2 est dans usr/lib, PAS dans lib : une entrée qui pointe
+# dans lib/ est acceptée au build (optional) mais l'IFS ne démarre pas.
+ldqnx-64.so.2 = usr/lib/ldqnx-64.so.2
+libc.so.6 = lib/libc.so.6
+libgcc_s.so.1 = lib/libgcc_s.so.1
+libm.so.3 = lib/libm.so.3
+libtracelog.so.1 = lib/libtracelog.so.1
+libslog2.so.1 = lib/libslog2.so.1
+libslog2parse.so.1 = lib/libslog2parse.so.1
+libsecpol.so.1 = lib/libsecpol.so.1
+libcam.so.2 = lib/libcam.so.2
+libz.so.2 = usr/lib/libz.so.2
+libfsnotify.so.1 = lib/libfsnotify.so.1
+libsocket.so.4 = lib/libsocket.so.4
+libcrypto.so.3 = lib/libcrypto.so.3
+libexpat.so.2 = lib/libexpat.so.2
+libregex.so.1 = lib/libregex.so.1
+libjson.so.1 = lib/libjson.so.1
+
+# --- LES BINAIRES DU PROJET : remplacez « hello » par les vôtres -----------
+# (ils doivent avoir été compilés dans le répertoire de construction)
+hello = ./hello
