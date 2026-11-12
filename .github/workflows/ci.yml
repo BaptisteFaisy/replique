@@ -1,0 +1,76 @@
+name: ci
+
+# CI du cœur portable : build C11 -Werror, tests unitaires, fixtures, différentiel
+# C↔Python, déterminisme (P1), gardes de taille et de pureté.
+#
+# Budget 5 minutes (règle user 2026-10-24) : le cœur C tient en ~2 000 lignes,
+# le jumeau Python n'a AUCUNE dépendance à télécharger et le runner self-hosted
+# (R630, label replique-worker) est chaud — la chaîne complète tourne en < 1 min.
+# Le build cible QNX (qcc, Déclic) est VOLONTAIREMENT hors CI : il exige le SDP
+# 8.0 sous licence ; voir `make target-qnx` et docs/DESIGN.md §7.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: ci
+    runs-on: [self-hosted, replique-worker]
+    timeout-minutes: 5
+    steps:
+      - name: Checkout (superficiel, build/ conservé)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          clean: false
+      - name: Nettoyage sélectif (garde les sorties de build)
+        run: |
+          # Runner persistant : un `git clean -ffdx` jetterait build/ et ferait
+          # tout recompiler à froid (voir ~/Bureau/CI-BUDGET-5MIN.md).
+          git clean -ffdx -e /build -e '*/build' || true
+      - name: Compiler le cœur C11 (-Werror)
+        run: make build
+      - name: Engendrer les fixtures de référence
+        run: make fixtures
+      - name: Tests unitaires C
+        run: make unit
+      - name: Différentiel C ↔ Python
+        run: make differential
+      - name: Déterminisme du rejeu (P1)
+        run: make determinism
+      - name: Artefacts (fixtures + sorties canoniques)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fixtures-et-sorties
+          path: fixtures/
+          retention-days: 7
+          if-no-files-found: warn
+
+  gardes:
+    name: gardes
+    runs-on: [self-hosted, replique-worker]
+    timeout-minutes: 5
+    steps:
+      - name: Checkout (superficiel)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Garde de taille (fichiers < 500 lignes, fonctions < 50)
+        run: python3 .github/checks/size_guard.py
+      - name: Garde de pureté (core/ sans I/O ni horloge, host/ stdlib seule)
+        run: python3 .github/checks/purity_guard.py
+      - name: Garde du budget CI (5 min par job)
+        run: python3 .github/ci-budget/check_timeouts.py

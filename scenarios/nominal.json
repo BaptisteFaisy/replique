@@ -1,0 +1,1 @@
+{"schema":"replique-scenario/1","name":"nominal","fixture":"fixtures/nominal.rkv1","n_events":25,"flags":2,"time_unit":1000000000,"expected_verdicts":[],"forbidden_verdicts":[],"replay":{"deterministic":true,"hash":12655629535735537574,"whatif":{"tid":0,"prio":0,"hash_changes":false}}}

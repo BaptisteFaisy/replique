@@ -1,0 +1,1 @@
+{"schema":"replique-scenario/1","name":"race","fixture":"fixtures/race.rkv1","n_events":21,"flags":2,"time_unit":1000000000,"expected_verdicts":[{"code":"TRACE_INCOMPLETE","sev":"warning","ts":1800,"tid":401,"detail":"holder-dead","a":1}],"forbidden_verdicts":[],"replay":{"deterministic":true,"hash":6824083847162224150,"whatif":{"tid":0,"prio":0,"hash_changes":false}}}

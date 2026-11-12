@@ -1,0 +1,83 @@
+name: hermes (résolution de conflit — InferHub)
+
+# Relais du gate `hermes-lite` : quand le rebase révèle un VRAI conflit, le
+# gate pose l'étiquette `hermes/conflit` et s'arrête. Ce workflow prend la
+# main et résout le conflit — voie déterministe d'abord (rebase seul), voie
+# InferHub ensuite (agent ZeroClaw, provider `custom.inferhub`, modèle
+# `combo/cheap`). Logique complète dans `.github/hermes/resolve_conflict.py`.
+#
+# Ce workflow ne fusionne JAMAIS : Mergify reste le seul pilote de merge.
+
+on:
+  pull_request:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Numéro de la PR à résoudre (requis pour un lancement manuel)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  pull-requests: write
+
+# fetch-depth: 0 est exigé ici (un rebase a besoin de l'historique complet) :
+# c'est la seule entorse au socle CI, et elle ne coûte rien en durée (job ≤ 5 min).
+concurrency:
+  group: hermes-conflict-resolver-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: true
+
+jobs:
+  resolve:
+    name: Résoudre le conflit
+    # Filtre sur l'étiquette : `labeled` se déclenche pour TOUTE étiquette posée.
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'hermes/conflit'
+    runs-on: [self-hosted, replique-worker]
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GITHUB_TOKEN: ${{ github.token }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+    steps:
+      - name: Numéro de PR
+        run: |
+          if [ -z "${PR_NUMBER:-}" ]; then
+            echo "::error::PR_NUMBER vide : relancer avec l'entrée pr_number (lancement manuel) ou poser l'étiquette hermes/conflit sur une PR."
+            exit 1
+          fi
+          echo "PR ciblée : ${GITHUB_REPOSITORY}#${PR_NUMBER}"
+
+      - name: Extraire la branche de la PR
+        uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ env.PR_NUMBER }}/head
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Outillage du runner (python3 + gcc + git + gh)
+        run: |
+          for outil in python3 gcc git gh; do
+            if command -v "$outil" >/dev/null 2>&1; then
+              echo "$outil : $(command -v "$outil")"
+            else
+              echo "::error::$outil absent du runner : impossible de vérifier la syntaxe C/Python après résolution."
+              exit 1
+            fi
+          done
+
+      - name: Secret InferHub
+        env:
+          INFERHUB_API_KEY: ${{ secrets.INFERHUB_API_KEY }}
+        run: |
+          if [ -z "${INFERHUB_API_KEY:-}" ]; then
+            echo "::error::Secret GitHub INFERHUB_API_KEY absent : ce workflow ne peut pas résoudre un conflit réel. Le poser dans Settings → Secrets and variables → Actions → New repository secret, puis relancer. (La voie déterministe du script, elle, n'a pas besoin de cette clé.)"
+            exit 1
+          fi
+          echo "secret INFERHUB_API_KEY présent (valeur jamais affichée)"
+
+      - name: Résoudre le conflit
+        env:
+          INFERHUB_API_KEY: ${{ secrets.INFERHUB_API_KEY }}
+        run: python3 .github/hermes/resolve_conflict.py

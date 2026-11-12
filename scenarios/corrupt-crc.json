@@ -1,0 +1,1 @@
+{"schema":"replique-scenario/1","name":"corrupt-crc","fixture":"fixtures/corrupt-crc.rkv1","n_events":0,"flags":0,"time_unit":1000000000,"expected_verdicts":[{"code":"PARSE_ERROR","sev":"error","ts":0,"tid":0,"detail":"bad-crc","a":20}],"forbidden_verdicts":[],"replay":{"deterministic":true,"hash":0,"whatif":{"tid":0,"prio":0,"hash_changes":false}}}

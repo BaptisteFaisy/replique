@@ -1,0 +1,10 @@
+build/
+*.o
+*.a
+*.rkv1.tmp
+__pycache__/
+*.py[cod]
+.venv/
+node_modules/
+*.svg.tmp
+.DS_Store

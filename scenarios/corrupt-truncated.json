@@ -1,0 +1,1 @@
+{"schema":"replique-scenario/1","name":"corrupt-truncated","fixture":"fixtures/corrupt-truncated.rkv1","n_events":0,"flags":0,"time_unit":1000000000,"expected_verdicts":[{"code":"PARSE_ERROR","sev":"error","ts":0,"tid":0,"detail":"bad-length","a":816}],"forbidden_verdicts":[],"replay":{"deterministic":true,"hash":0,"whatif":{"tid":0,"prio":0,"hash_changes":false}}}
