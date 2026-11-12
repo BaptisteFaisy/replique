@@ -77,6 +77,10 @@ unit: build $(DECIC_TEST)
 	done
 	@echo "unit OK ($$(echo $(TEST_BIN) $(DECIC_TEST) | wc -w) binaires)"
 
+# Tests du jumeau Python (stdlib seule, aucun pytest) : mêmes attentes que le C.
+unit-python:
+	PYTHONPATH=host $(PYTHON) -m unittest discover -s host/tests -t host -q
+
 differential: build fixtures
 	tests/differential_c_python.sh
 
@@ -91,7 +95,7 @@ guard:
 	$(PYTHON) .github/checks/purity_guard.py
 	$(PYTHON) .github/ci-budget/check_timeouts.py
 
-test: guard build fixtures unit differential determinism
+test: guard build fixtures unit unit-python differential determinism
 	@echo "MAKE TEST VERT — sans QNX, sans cible, sans licence (S8)"
 
 # Hors CI : nécessite le SDP QNX 8.0 (qcc + mkifs). Jamais requis par `make test`.

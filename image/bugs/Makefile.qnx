@@ -1,0 +1,29 @@
+# Makefile.qnx — construction des générateurs de bogues de l'image invitée.
+#
+# Ces trois programmes reproduisent les scénarios gelés de
+# scenarios/SPEC.md (§2 deadlock, §3 prio-inversion, §4 race) en vrai code
+# QNX (pthread mutex, MsgSend/MsgReceive/MsgReply, priorités).
+#
+# Ils ne sont JAMAIS compilés par `make test` sur PC : ils exigent le SDP 8.0
+# et ne servent qu'à la démonstration sur l'invité QEMU.
+#
+#   cd image/bugs && make -f Makefile.qnx
+
+QCC      ?= qcc
+TARGET   := gcc_ntox86_64
+CC       := $(QCC) -V$(TARGET)
+CFLAGS   := -std=c11 -O2 -g -Wall -Wextra -Werror
+LDFLAGS  ?=
+LDLIBS   ?= -lpthread
+
+BINS := deadlock prio_inversion race
+
+.PHONY: all clean
+
+all: $(BINS)
+
+$(BINS): %: %.c
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LDLIBS)
+
+clean:
+	rm -f $(BINS)

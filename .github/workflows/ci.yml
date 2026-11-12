@@ -45,6 +45,8 @@ jobs:
         run: make fixtures
       - name: Tests unitaires C
         run: make unit
+      - name: Tests unitaires du jumeau Python
+        run: make unit-python
       - name: Différentiel C ↔ Python
         run: make differential
       - name: Déterminisme du rejeu (P1)

@@ -39,7 +39,9 @@ replique/
 └── docs/                        # DESIGN GAP DECISIONS VALIDATION KEV-FORMAT SCHED-MODEL REPORT-TEMPLATE
 ```
 
-Le dépôt est en cours d'assemblage par lots (cahier des charges §16) ; l'arbre ci-dessus est l'architecture cible, les surfaces gelées (`CONTRACT.md`, `Makefile`, en-têtes C, `scenarios/SPEC.md`) font foi.
+L'arbre ci-dessus est l'architecture réelle : le cœur portable, le jumeau Python, les fixtures, la CI et le codelab sont en place et vérifiés ; la partie **cible QNX** (`target/`, `image/`) est écrite mais ne se compile qu'avec le SDP 8.0 — la logique portable de Déclic, elle, est testée sur PC.
+
+Ce qui est **prouvé aujourd'hui** et ce qui reste conditionné à une cible sont détaillé dans [docs/PREUVE.md](docs/PREUVE.md). Les surfaces gelées (`CONTRACT.md`, `Makefile`, en-têtes C, `scenarios/SPEC.md`) font foi : les changer est une PR explicite.
 
 ## Mise en route
 
