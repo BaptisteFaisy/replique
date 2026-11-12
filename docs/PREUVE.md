@@ -94,7 +94,7 @@ tests/differential_traceprinter.sh          # vert (avertissement) sans SDP, com
 
 | Élément | État |
 |---|---|
-| Dépôt | https://github.com/BaptisteFaisy/replique |
+| Dépôt | https://github.com/Tradoooo/replique |
 | Runner | `r630-replique-01` (self-hosted, R630, label `replique-worker`) |
 | CI | `.github/workflows/ci.yml` — jobs `ci` et `gardes`, ≤ 5 min, `fetch-depth: 1`, `concurrency` |
 | Hermes | gate de fraîcheur (`.github/hermes/gate.py`) + résolveur de conflit **InferHub** (`.github/hermes/resolve_conflict.py`) |
