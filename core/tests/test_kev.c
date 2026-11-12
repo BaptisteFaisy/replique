@@ -63,30 +63,38 @@ static size_t build_container(uint8_t *buf, const replique_event *ev, size_t n,
 
 /* --------------------------------------------------- jeu d'événements type */
 
-static void fill_sample(replique_event *ev)
+/* Remplit jusqu'à n événements : les tests n'utilisent pas toujours les trois
+ * (certains n'en ont qu'un), et le memset ne doit jamais dépasser le tableau. */
+static void fill_sample(replique_event *ev, size_t n)
 {
-  memset(ev, 0, 3u * sizeof *ev);
-  ev[0].ts = 1000u;
-  ev[0].pid = 10u;
-  ev[0].tid = 101u;
-  ev[0].cls = REPLIQUE_EV_THREAD_CREATE;
-  ev[0].subcode = REPLIQUE_SCHED_FIFO;
-  ev[0].a = 50u;
-  ev[1].ts = 1100u;
-  ev[1].pid = 10u;
-  ev[1].tid = 101u;
-  ev[1].cls = REPLIQUE_EV_MUTEX_LOCK;
-  ev[1].subcode = 0u;
-  ev[1].a = 32u;
-  ev[1].b = 101u;
-  ev[2].ts = 1200u;
-  ev[2].pid = 10u;
-  ev[2].tid = 102u;
-  ev[2].cls = REPLIQUE_EV_THREAD_STATE;
-  ev[2].subcode = REPLIQUE_TH_BLOCKED;
-  ev[2].a = REPLIQUE_BR_MUTEX;
-  ev[2].b = 32u;
-  ev[2].c = 101u;
+  memset(ev, 0, n * sizeof *ev);
+  if (n > 0u) {
+    ev[0].ts = 1000u;
+    ev[0].pid = 10u;
+    ev[0].tid = 101u;
+    ev[0].cls = REPLIQUE_EV_THREAD_CREATE;
+    ev[0].subcode = REPLIQUE_SCHED_FIFO;
+    ev[0].a = 50u;
+  }
+  if (n > 1u) {
+    ev[1].ts = 1100u;
+    ev[1].pid = 10u;
+    ev[1].tid = 101u;
+    ev[1].cls = REPLIQUE_EV_MUTEX_LOCK;
+    ev[1].subcode = 0u;
+    ev[1].a = 32u;
+    ev[1].b = 101u;
+  }
+  if (n > 2u) {
+    ev[2].ts = 1200u;
+    ev[2].pid = 10u;
+    ev[2].tid = 102u;
+    ev[2].cls = REPLIQUE_EV_THREAD_STATE;
+    ev[2].subcode = REPLIQUE_TH_BLOCKED;
+    ev[2].a = REPLIQUE_BR_MUTEX;
+    ev[2].b = 32u;
+    ev[2].c = 101u;
+  }
 }
 
 /* ------------------------------------------------------------ aller-retour */
@@ -103,7 +111,7 @@ static void test_roundtrip(void)
   size_t n_out = 0u;
   size_t i;
 
-  fill_sample(ev);
+  fill_sample(ev, sizeof ev / sizeof ev[0]);
   /* L'API renvoie le STATUT et ecrit la taille dans n_out : meme
    * convention que parse et header. */
   TU_EQ(replique_kev_write(ev, 3u, REPLIQUE_FLAG_SYNTHETIC,
@@ -199,7 +207,7 @@ static void test_bad_magic(void)
   replique_event ev[1];
   size_t len;
 
-  fill_sample(ev);
+  fill_sample(ev, sizeof ev / sizeof ev[0]);
   len = build_container(buf, ev, 1u, 0u, REPLIQUE_TIME_UNIT_NS);
   buf[0] = (uint8_t)'X';
   expect_parse_error(buf, len, REPLIQUE_ERR_MAGIC, REPLIQUE_CAUSE_BAD_MAGIC,
@@ -212,7 +220,7 @@ static void test_bad_version(void)
   replique_event ev[1];
   size_t len;
 
-  fill_sample(ev);
+  fill_sample(ev, sizeof ev / sizeof ev[0]);
   len = build_container(buf, ev, 1u, 0u, REPLIQUE_TIME_UNIT_NS);
   put32(buf + 4, 2u);
   expect_parse_error(buf, len, REPLIQUE_ERR_VERSION,
@@ -226,7 +234,7 @@ static void test_bad_flags(void)
   replique_event ev[1];
   size_t len;
 
-  fill_sample(ev);
+  fill_sample(ev, sizeof ev / sizeof ev[0]);
   len = build_container(buf, ev, 1u, 0u, REPLIQUE_TIME_UNIT_NS);
   put32(buf + 8, 0x00000004u);
   expect_parse_error(buf, len, REPLIQUE_ERR_FLAGS, REPLIQUE_CAUSE_BAD_FLAGS,
@@ -239,7 +247,7 @@ static void test_bad_length(void)
   replique_event ev[2];
   size_t len;
 
-  fill_sample(ev);
+  fill_sample(ev, sizeof ev / sizeof ev[0]);
   len = build_container(buf, ev, 2u, 0u, REPLIQUE_TIME_UNIT_NS);
   expect_parse_error(buf, len - 1u, REPLIQUE_ERR_TRUNCATED,
                      REPLIQUE_CAUSE_BAD_LENGTH, len - 1u,
@@ -252,7 +260,7 @@ static void test_bad_crc(void)
   replique_event ev[2];
   size_t len;
 
-  fill_sample(ev);
+  fill_sample(ev, sizeof ev / sizeof ev[0]);
   len = build_container(buf, ev, 2u, 0u, REPLIQUE_TIME_UNIT_NS);
   buf[REPLIQUE_HEADER_SIZE + 3u] ^= 0xFFu;
   expect_parse_error(buf, len, REPLIQUE_ERR_CRC, REPLIQUE_CAUSE_BAD_CRC, 20u,
@@ -265,7 +273,7 @@ static void test_bad_class(void)
   replique_event ev[1];
   size_t len;
 
-  fill_sample(ev);
+  fill_sample(ev, sizeof ev / sizeof ev[0]);
   ev[0].cls = (uint16_t)(REPLIQUE_EV_CLASS_MAX + 1u);
   len = build_container(buf, ev, 1u, 0u, REPLIQUE_TIME_UNIT_NS);
   expect_parse_error(buf, len, REPLIQUE_ERR_CLASS, REPLIQUE_CAUSE_BAD_CLASS,
@@ -279,7 +287,7 @@ static void test_ts_not_monotonic(void)
   replique_event ev[2];
   size_t len;
 
-  fill_sample(ev);
+  fill_sample(ev, sizeof ev / sizeof ev[0]);
   ev[1].ts = 900u;
   len = build_container(buf, ev, 2u, 0u, REPLIQUE_TIME_UNIT_NS);
   expect_parse_error(buf, len, REPLIQUE_ERR_ORDER,
@@ -297,7 +305,7 @@ static void test_ts_equal_allowed(void)
   size_t len;
   size_t n_out = 0u;
 
-  fill_sample(ev);
+  fill_sample(ev, sizeof ev / sizeof ev[0]);
   ev[1].ts = ev[0].ts;
   len = build_container(buf, ev, 2u, 0u, REPLIQUE_TIME_UNIT_NS);
   TU_EQ(replique_kev_parse(buf, len, back, 2u, &n_out), REPLIQUE_STATUS_OK,
@@ -315,7 +323,7 @@ static void test_overflow(void)
   size_t len = 0u;
   size_t n_out = 0u;
 
-  fill_sample(ev);
+  fill_sample(ev, sizeof ev / sizeof ev[0]);
   TU_EQ(replique_kev_write(ev, 3u, 0u, REPLIQUE_TIME_UNIT_NS, buf,
                             REPLIQUE_HEADER_SIZE + 3u * REPLIQUE_RECORD_SIZE - 1u,
                             &n_out),
