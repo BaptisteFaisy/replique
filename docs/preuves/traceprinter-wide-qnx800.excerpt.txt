@@ -1,0 +1,340 @@
+# Extrait de la trace « wide » QNX 8.0.0 (trace-qnx800-wide.kev), décodée
+# par l'oracle officiel : traceprinter -f <fichier>. Décode complet = 47 955
+# lignes ; cet extrait montre ce que la trace RAPIDE ne contenait pas :
+# le processus fautif bug-deadlock et ses deux threads (priorités 60 et 50)
+# créés, bloqués puis détruits, plus ses opérations mutex. Reproduit avec
+# image/exp-wide.sh sur l'invité piloté par qnx-emu/ser-console.py.
+#
+# Régénérer le décode complet :
+#   QNX_HOST=$HOME/qnx800/host/linux/x86_64 \
+#     $QNX_HOST/usr/bin/traceprinter -f docs/preuves/trace-qnx800-wide.kev
+
+##### EN-TÊTE (mode wide, -w) #####
+TRACEPRINTER version 1.02
+TRACEPARSER LIBRARY version 1.02
+ -- HEADER FILE INFORMATION -- 
+            TRACE_DATE:: Fri Nov 13 13:08:48 2026
+       TRACE_VER_MAJOR:: 2
+       TRACE_VER_MINOR:: 01
+   TRACE_LITTLE_ENDIAN:: TRUE
+        TRACE_ENCODING:: 16 byte events
+       TRACE_BOOT_DATE:: Fri Nov 13 12:08:20 2026
+  TRACE_CYCLES_PER_SEC:: 2295987281
+         TRACE_CPU_NUM:: 4
+         TRACE_SYSNAME:: QNX
+        TRACE_NODENAME:: localhost
+     TRACE_SYS_RELEASE:: 8.0.0
+     TRACE_SYS_VERSION:: 2026/06/05-16:26:03EDT
+         TRACE_MACHINE:: x86pc
+     TRACE_SYSPAGE_LEN:: 2464
+       TRACE_FILE_NAME:: /dev/shmem/wide.kev
+TRACE_TRACELOGGER_ARGS:: tracelogger -w -F2 -c -r -f /dev/shmem/wide.kev -S 16M -k 16 -b 256
+
+##### DÉMARRAGE DU FAUTIF : PATHMGR_OPEN /proc/boot/bug-deadlock #####
+           info->srcmsglen:72
+           info->dstmsglen:1556
+            info->priority:10
+               info->flags:4096
+            info->reserved:0
+t:0x79566edb5e6 CPU:02 SYSTEM          :PATHMGR_OPEN      
+                       pid:180232
+                       tid:1
+                      path:/proc/boot/bug-deadlock
+t:0x79566f1d936 CPU:02 THREAD          :THREADY            pid:1 tid:11 priority:254 policy:8
+t:0x79566f244e8 CPU:02 THREAD          :THREADY            pid:1 tid:28 priority:10 policy:2
+t:0x79566f4e57a CPU:02 THREAD          :THRUNNING          pid:1 tid:11 priority:254 policy:8
+t:0x79566f86e38 CPU:03 THREAD          :THREADY            pid:1 tid:8 priority:255 policy:8
+t:0x79566f99fc4 CPU:03 THREAD          :THREADY            pid:1 tid:4 priority:0 policy:1
+t:0x79566f9b7ee CPU:02 THREAD          :THINTR             pid:1 tid:11 priority:254 policy:8
+t:0x79566fa576e CPU:02 THREAD          :THRUNNING          pid:1 tid:28 priority:10 policy:2
+t:0x79566fb940a CPU:03 THREAD          :THRUNNING          pid:1 tid:8 priority:255 policy:8
+t:0x79566fbe5c7 CPU:03 SYSTEM          :IPI_64             ipicmd = 0x000001,  RESCHED
+t:0x79566fc3262 CPU:03 THREAD          :THINTR             pid:1 tid:8 priority:255 policy:8
+t:0x79566fc8a21 CPU:03 THREAD          :THRUNNING          pid:1 tid:4 priority:0 policy:1
+t:0x79566fdb94a CPU:02 KER_CALL        :MSG_REPLYV/15     
+
+##### THREAD 2 (prio 60) : création, premier passage, nanosleep #####
+t:0x7956f2ad629 CPU:03 THREAD          :THRUNNING          pid:1 tid:12 priority:254 policy:8
+t:0x7956f2c2cc1 CPU:03 THREAD          :THINTR             pid:1 tid:12 priority:254 policy:8
+t:0x7956f2c655e CPU:03 THREAD          :THRUNNING          pid:1 tid:4 priority:0 policy:1
+t:0x7956f2fdd93 CPU:03 THREAD          :THREADY            pid:1 tid:8 priority:255 policy:8
+t:0x7956f30253f CPU:03 THREAD          :THREADY            pid:1 tid:4 priority:0 policy:1
+t:0x7956f317109 CPU:02 THREAD          :THREADY            pid:180232 tid:2 priority:10 policy:2
+t:0x7956f31b29b CPU:02 SYSTEM          :SEND_IPI_64        target_cpu = 3, ipicmd = 0x000001 RESCHED
+t:0x7956f31ebad CPU:02 THREAD          :THCREATE           pid:180232 tid:2
+t:0x7956f3229b5 CPU:02 KER_EXIT        :THREAD_CREATE/46   thread_id:0x00000002 owner:0x40080001
+t:0x7956f32942d CPU:03 THREAD          :THRUNNING          pid:1 tid:8 priority:255 policy:8
+t:0x7956f32edb8 CPU:03 SYSTEM          :IPI_64             ipicmd = 0x000001,  RESCHED
+t:0x7956f333b95 CPU:03 THREAD          :THINTR             pid:1 tid:8 priority:255 policy:8
+t:0x7956f339497 CPU:03 THREAD          :THRUNNING          pid:3 tid:1 priority:24 policy:2
+t:0x7956f33bb15 CPU:02 KER_CALL        :TIMER_TIMEOUT/75  
+                        id:0
+             timeout_flags:0x00001000
+                ntime(sec):0
+               ntime(nsec):50000000
+       event->sigev_notify:0
+event->sigev_notify_function_p:0x00000000
+        event->sigev_value:0x00000000
+event->sigev_notify_attributes_p:0x00000000
+t:0x7956f359f7f CPU:03 KER_CALL        :MSG_RECEIVEV/14   
+                      chid:0x00000001
+                    rparts:1
+t:0x7956f35a317 CPU:02 THREAD          :THNANOSLEEP        pid:180232 tid:1 priority:10 policy:2
+t:0x7956f360ccb CPU:02 THREAD          :THRUNNING          pid:1 tid:3 priority:0 policy:1
+t:0x7956f36b637 CPU:03 COMM            :REC_PULSE          scoid:0x00010001 pid:3
+t:0x7956f37040d CPU:03 KER_EXIT        :MSG_RECEIVEV/14   
+                     rcvid:0x00000000
+                   rmsg[0]:"" (0x00000000 0x00000002 0x00000000)
+                  info->nd:0
+               info->srcnd:0
+                 info->pid:180232
+                 info->tid:1
+                info->chid:1
+               info->scoid:65542
+                info->coid:1
+              info->msglen:0
+           info->srcmsglen:68
+           info->dstmsglen:0
+            info->priority:10
+               info->flags:4096
+            info->reserved:0
+t:0x7956f392237 CPU:03 KER_CALL        :MSG_SEND_PULSE/20 
+                      coid:0x40000001
+                  priority:24
+                      code:0x00000000
+                     value:0x00000000
+t:0x7956f39e27e CPU:03 COMM            :SND_PULSE          scoid:0x00010001 pid:3
+t:0x7956f3a0a98 CPU:03 KER_EXIT        :MSG_SEND_PULSE/20  status:0 empty:0x00000000
+t:0x7956f3a0d9b CPU:02 THREAD          :THREADY            pid:1 tid:7 priority:255 policy:8
+t:0x7956f3a5825 CPU:02 THREAD          :THREADY            pid:1 tid:3 priority:0 policy:1
+t:0x7956f3a6a53 CPU:03 KER_CALL        :INTERRUPT_UNMASK/60 intr:4 id:1
+t:0x7956f3ad071 CPU:02 THREAD          :THRUNNING          pid:1 tid:7 priority:255 policy:8
+t:0x7956f3b0a25 CPU:03 KER_EXIT        :INTERRUPT_UNMASK/60 mask_level:0x00000000 empty:0x00000000
+t:0x7956f3b1ffb CPU:02 SYSTEM          :IPI_64             ipicmd = 0x000001,  RESCHED
+t:0x7956f3b7f0b CPU:02 THREAD          :THINTR             pid:1 tid:7 priority:255 policy:8
+t:0x7956f3bda35 CPU:02 THREAD          :THRUNNING          pid:1 tid:3 priority:0 policy:1
+t:0x7956f3be1ae CPU:03 KER_CALL        :MSG_RECEIVEV/14   
+                      chid:0x00000001
+                    rparts:1
+t:0x7956f3c4515 CPU:03 THREAD          :THRUNNING          pid:3 tid:1 priority:24 policy:2
+t:0x7956f3cac16 CPU:03 COMM            :REC_PULSE          scoid:0x00010001 pid:3
+t:0x7956f3cce29 CPU:03 CONTROL         :BUFFER_END         cookie1 = e6e6e6e6, cookie2 = e6e6e6e6
+
+t:0x7956f3cce29 CPU:03 CONTROL         :TIME               msb:0x00000795 lsb(offset):0x6f3cce29
+t:0x7956f3cce29 CPU:03 CONTROL         :BUFFER             sequence = 3, num_events = 1011
+
+t:0x7956f3cce29 CPU:03 KER_EXIT        :MSG_RECEIVEV/14   
+                     rcvid:0x00000000
+                   rmsg[0]:"" (0x00000000 0x00000000 0x00000000)
+                  info->nd:0
+               info->srcnd:0
+                 info->pid:180232
+                 info->tid:1
+                info->chid:1
+               info->scoid:65542
+                info->coid:1
+              info->msglen:0
+           info->srcmsglen:68
+           info->dstmsglen:0
+            info->priority:10
+               info->flags:4096
+            info->reserved:0
+t:0x7956f3d568b CPU:03 THREAD          :THREADY            pid:3 tid:1 priority:24 policy:2
+t:0x7956f3dabdf CPU:03 THREAD          :THRUNNING          pid:3 tid:1 priority:24 policy:2
+t:0x7956f4558e0 CPU:03 KER_CALL        :MSG_RECEIVEV/14   
+                      chid:0x00000001
+                    rparts:1
+t:0x7956f4b8b97 CPU:02 THREAD          :THREADY            pid:1 tid:7 priority:255 policy:8
+t:0x7956f4bb885 CPU:03 THREAD          :THREPLY            pid:180232 tid:2 priority:60 policy:1
+t:0x7956f4be2df CPU:02 THREAD          :THREADY            pid:1 tid:3 priority:0 policy:1
+t:0x7956f4c213b CPU:03 COMM            :REC_MESSAGE        rcvid:0x00010006 pid:3
+t:0x7956f4c64e5 CPU:02 THREAD          :THRUNNING          pid:1 tid:7 priority:255 policy:8
+t:0x7956f4c783c CPU:03 KER_EXIT        :MSG_RECEIVEV/14   
+                     rcvid:0x00010006
+                   rmsg[0]:"" (0x00000102 0x00000029 0x00000000)
+                  info->nd:0
+               info->srcnd:0
+                 info->pid:180232
+                 info->tid:2
+                info->chid:1
+               info->scoid:65542
+                info->coid:1
+              info->msglen:57
+           info->srcmsglen:57
+           info->dstmsglen:0
+            info->priority:60
+               info->flags:4096
+            info->reserved:0
+t:0x7956f4caf97 CPU:02 SYSTEM          :IPI_64             ipicmd = 0x000001,  RESCHED
+t:0x7956f4cf371 CPU:02 THREAD          :THINTR             pid:1 tid:7 priority:255 policy:8
+t:0x7956f4d3a81 CPU:02 THREAD          :THRUNNING          pid:1 tid:3 priority:0 policy:1
+t:0x7956f56391b CPU:03 KER_CALL        :MSG_REPLYV/15     
+                     rcvid:0x00010006
+                    sparts:0
+                    status:0x0000000000000029
+                   smsg[0]:"" (0x00000000 0x00000000 0x00000000)
+t:0x7956f571219 CPU:03 COMM            :REPLY_MESSAGE      tid:2 pid:180232
+t:0x7956f5bcc03 CPU:03 THREAD          :THREADY            pid:180232 tid:2 priority:60 policy:1
+t:0x7956f5c1011 CPU:03 SYSTEM          :SEND_IPI_64        target_cpu = 1, ipicmd = 0x000001 RESCHED
+t:0x7956f5cc5d0 CPU:03 KER_EXIT        :MSG_REPLYV/15      ret_val:0 empty:0x00000000
+t:0x7956f5d3923 CPU:03 KER_CALL        :MSG_RECEIVEV/14   
+                      chid:0x00000001
+                    rparts:1
+t:0x7956f5db381 CPU:03 THREAD          :THRECEIVE          pid:3 tid:1 priority:60 policy:2
+t:0x7956f5e0def CPU:03 THREAD          :THRUNNING          pid:180232 tid:2 priority:60 policy:1
+t:0x7956f5f3770 CPU:03 KER_EXIT        :MSG_SENDV/11      
+                    status:41
+                   rmsg[0]:"" (0x00000000 0x00000000 0x00000000)
+t:0x7956f62be22 CPU:02 THREAD          :THREADY            pid:1 tid:7 priority:255 policy:8
+t:0x7956f63126c CPU:02 THREAD          :THREADY            pid:1 tid:3 priority:0 policy:1
+t:0x7956f63a2de CPU:02 THREAD          :THRUNNING          pid:1 tid:7 priority:255 policy:8
+t:0x7956f63f36a CPU:02 SYSTEM          :IPI_64             ipicmd = 0x000001,  RESCHED
+t:0x7956f644720 CPU:02 THREAD          :THINTR             pid:1 tid:7 priority:255 policy:8
+t:0x7956f64a74a CPU:02 THREAD          :THRUNNING          pid:1 tid:3 priority:0 policy:1
+t:0x7956f6b18fc CPU:03 KER_CALL        :SYNC_CONDVAR_SIGNAL/83
+                    sync_p:0x0000004d82c7f020
+                       all:1
+               sync->count:0
+               sync->owner:-5
+t:0x7956f6c831a CPU:03 KER_EXIT        :SYNC_CONDVAR_SIG/83 ret_val:0 empty:0x00000000
+t:0x7956f6d6440 CPU:03 KER_CALL        :TIMER_TIMEOUT/75  
+                        id:0
+             timeout_flags:0x00001000
+                ntime(sec):0
+               ntime(nsec):200000000
+       event->sigev_notify:0
+event->sigev_notify_function_p:0x00000000
+        event->sigev_value:0x00000000
+event->sigev_notify_attributes_p:0x00000000
+t:0x7956f6e1550 CPU:02 THREAD          :THREADY            pid:1 tid:7 priority:255 policy:8
+t:0x7956f6e4700 CPU:02 THREAD          :THREADY            pid:1 tid:3 priority:0 policy:1
+t:0x7956f6ebaf6 CPU:03 THREAD          :THNANOSLEEP        pid:180232 tid:2 priority:60 policy:1
+t:0x7956f6f3b27 CPU:03 THREAD          :THRUNNING          pid:1 tid:4 priority:0 policy:1
+t:0x7956f702ae2 CPU:02 THREAD          :THRUNNING          pid:1 tid:7 priority:255 policy:8
+t:0x7956f706774 CPU:02 SYSTEM          :IPI_64             ipicmd = 0x000001,  RESCHED
+
+##### THREAD 3 (prio 50) : création #####
+                     empty:0
+                     empty:4096
+                     empty:0
+t:0x7957663f833 CPU:02 THREAD          :THREADY            pid:180232 tid:3 priority:10 policy:2
+t:0x795766416b3 CPU:02 SYSTEM          :SEND_IPI_64        target_cpu = 0, ipicmd = 0x000001 RESCHED
+t:0x7957664ac19 CPU:02 THREAD          :THCREATE           pid:180232 tid:3
+t:0x7957664d58d CPU:02 KER_EXIT        :THREAD_CREATE/46   thread_id:0x00000003 owner:0x40080001
+t:0x795766565d9 CPU:02 KER_CALL        :THREAD_JOIN/50    
+                       tid:3
+                  status_p:0x0000000000000000
+t:0x795766cdce3 CPU:02 THREAD          :THJOIN             pid:180232 tid:1 priority:10 policy:2
+t:0x795766d39b9 CPU:02 THREAD          :THRUNNING          pid:1 tid:3 priority:0 policy:1
+t:0x79576998a06 CPU:02 THREAD          :THREADY            pid:1 tid:7 priority:255 policy:8
+t:0x795769a0378 CPU:02 THREAD          :THREADY            pid:1 tid:3 priority:0 policy:1
+t:0x795769ab4c2 CPU:02 THREAD          :THRUNNING          pid:1 tid:7 priority:255 policy:8
+t:0x795769b2b86 CPU:02 SYSTEM          :IPI_64             ipicmd = 0x000001,  RESCHED
+t:0x795769ba12e CPU:02 THREAD          :THINTR             pid:1 tid:7 priority:255 policy:8
+t:0x795769c077c CPU:02 THREAD          :THRUNNING          pid:1 tid:3 priority:0 policy:1
+t:0x79576ab283a CPU:02 THREAD          :THREADY            pid:1 tid:11 priority:254 policy:8
+t:0x79576abf2a2 CPU:02 THREAD          :THREADY            pid:1 tid:3 priority:0 policy:1
+t:0x79576ace0ba CPU:02 THREAD          :THRUNNING          pid:1 tid:11 priority:254 policy:8
+t:0x79576ae5eb2 CPU:02 THREAD          :THINTR             pid:1 tid:11 priority:254 policy:8
+t:0x79576aec562 CPU:02 THREAD          :THRUNNING          pid:3 tid:1 priority:50 policy:2
+t:0x79576b1d368 CPU:02 KER_CALL        :MSG_RECEIVEV/14   
+                      chid:0x00000001
+                    rparts:1
+t:0x79576b3254a CPU:02 THREAD          :THREPLY            pid:180232 tid:3 priority:50 policy:1
+t:0x79576b3bfcc CPU:02 COMM            :REC_MESSAGE        rcvid:0x00020006 pid:3
+t:0x79576b4432e CPU:02 KER_EXIT        :MSG_RECEIVEV/14   
+                     rcvid:0x00020006
+                   rmsg[0]:"" (0x00000102 0x00000027 0x00000000)
+                  info->nd:0
+               info->srcnd:0
+                 info->pid:180232
+                 info->tid:3
+                info->chid:1
+               info->scoid:65542
+                info->coid:1
+              info->msglen:55
+           info->srcmsglen:55
+           info->dstmsglen:0
+            info->priority:50
+               info->flags:4096
+            info->reserved:0
+t:0x79576c15d9e CPU:02 KER_CALL        :MSG_REPLYV/15     
+                     rcvid:0x00020006
+                    sparts:0
+                    status:0x0000000000000027
+                   smsg[0]:"" (0x00000000 0x00000000 0x00000000)
+t:0x79576c1c3ae CPU:02 COMM            :REPLY_MESSAGE      tid:3 pid:180232
+t:0x79576c22906 CPU:02 THREAD          :THREADY            pid:180232 tid:3 priority:50 policy:1
+t:0x79576c25e5a CPU:02 SYSTEM          :SEND_IPI_64        target_cpu = 1, ipicmd = 0x000001 RESCHED
+t:0x79576c34cd6 CPU:02 KER_EXIT        :MSG_REPLYV/15      ret_val:0 empty:0x00000000
+t:0x79576c3ba8a CPU:02 KER_CALL        :MSG_RECEIVEV/14   
+                      chid:0x00000001
+
+##### ... les deux threads restent bloqués (aucun événement) jusqu'à slay ... #####
+
+##### FIN : destruction des deux threads et du processus #####
+t:0x798c7ab67d9 CPU:02 THREAD          :THRUNNING          pid:1 tid:7 priority:255 policy:8
+t:0x798c7abb2c5 CPU:02 SYSTEM          :IPI_64             ipicmd = 0x000001,  RESCHED
+t:0x798c7abd5f2 CPU:01 THREAD          :THREADY            pid:180232 tid:2 priority:60 policy:1
+t:0x798c7abfe89 CPU:02 THREAD          :THINTR             pid:1 tid:7 priority:255 policy:8
+t:0x798c7ac175a CPU:01 THREAD          :THREADY            pid:180232 tid:3 priority:60 policy:1
+t:0x798c7ac3a52 CPU:01 THREAD          :THDESTROY          pid:180232 tid:1
+t:0x798c7ac8235 CPU:02 THREAD          :THRUNNING          pid:180232 tid:2 priority:60 policy:1
+t:0x798c7aca2dd CPU:02 SYSTEM          :SEND_IPI_64        target_cpu = 3, ipicmd = 0x000001 RESCHED
+t:0x798c7ad6a32 CPU:01 THREAD          :THDEAD             pid:180232 tid:1 priority:10 policy:2
+t:0x798c7adc012 CPU:01 THREAD          :THRUNNING          pid:180232 tid:3 priority:60 policy:1
+t:0x798c7ae502a CPU:03 THREAD          :THREADY            pid:1 tid:8 priority:255 policy:8
+t:0x798c7aea70c CPU:03 THREAD          :THREADY            pid:1 tid:4 priority:0 policy:1
+t:0x798c7af3411 CPU:03 THREAD          :THRUNNING          pid:1 tid:8 priority:255 policy:8
+t:0x798c7af520d CPU:00 KER_CALL        :SIGNAL_PROCMASK/30
+                       pid:0
+                       tid:0
+                       how:0x00000000
+      sig_blocked->bits[0]:0x00020000
+      sig_blocked->bits[1]:0x00000000
+t:0x798c7af8bbb CPU:03 SYSTEM          :IPI_64             ipicmd = 0x000001,  RESCHED
+t:0x798c7af92e9 CPU:00 KER_EXIT        :SIGNAL_PROCMASK/30
+                   ret_val:0
+  old_sig_blocked->bits[0]:0x00000000
+  old_sig_blocked->bits[1]:0xff000000
+t:0x798c7afda79 CPU:00 KER_CALL        :SIGNAL_PROCMASK/30
+                       pid:0
+                       tid:0
+                       how:0x00000002
+      sig_blocked->bits[0]:0x00000000
+      sig_blocked->bits[1]:0xff000000
+t:0x798c7afe24e CPU:03 THREAD          :THINTR             pid:1 tid:8 priority:255 policy:8
+t:0x798c7afff05 CPU:02 SYSTEM          :SEND_IPI_64        target_cpu = 1, ipicmd = 0x000008 RESCHED_PREEMPT
+t:0x798c7b00bf2 CPU:01 KER_EXIT        :SYNC_MUTEX_LOCK/80 ret_val:-1, errno:39
+t:0x798c7b03fd2 CPU:01 THREAD          :THDESTROY          pid:180232 tid:3
+t:0x798c7b0422c CPU:03 THREAD          :THRUNNING          pid:1 tid:4 priority:0 policy:1
+t:0x798c7b0dfbd CPU:00 THREAD          :THREADY            pid:1 tid:9 priority:254 policy:8
+t:0x798c7b12789 CPU:00 THREAD          :THREADY            pid:163844 tid:1 priority:10 policy:2
+t:0x798c7b12ad1 CPU:01 THREAD          :THRUNNING          pid:180232 tid:3 priority:50 policy:1
+t:0x798c7b166a2 CPU:01 THREAD          :THDEAD             pid:180232 tid:3 priority:50 policy:1
+t:0x798c7b1b156 CPU:01 THREAD          :THRUNNING          pid:163844 tid:1 priority:10 policy:2
+t:0x798c7b1b889 CPU:02 THREAD          :THREADY            pid:180232 tid:3 priority:50 policy:1
+t:0x798c7b1c1dd CPU:00 THREAD          :THRUNNING          pid:1 tid:9 priority:254 policy:8
+t:0x798c7b1e0a5 CPU:02 SYSTEM          :SEND_IPI_64        target_cpu = 3, ipicmd = 0x000001 RESCHED
+t:0x798c7b2b5c1 CPU:00 THREAD          :THINTR             pid:1 tid:9 priority:254 policy:8
+t:0x798c7b2fe0a CPU:01 THREAD          :THREADY            pid:1 tid:6 priority:255 policy:8
+t:0x798c7b30ba9 CPU:02 KER_EXIT        :SYNC_MUTEX_LOCK/80 ret_val:-1, errno:39
+t:0x798c7b30de1 CPU:00 THREAD          :THRUNNING          pid:180232 tid:3 priority:50 policy:1
+t:0x798c7b3113c CPU:03 THREAD          :THREADY            pid:1 tid:8 priority:255 policy:8
+t:0x798c7b348e2 CPU:01 THREAD          :THREADY            pid:163844 tid:1 priority:10 policy:2
+t:0x798c7b34e60 CPU:03 THREAD          :THREADY            pid:1 tid:4 priority:0 policy:1
+t:0x798c7b396b1 CPU:02 THREAD          :THDESTROY          pid:180232 tid:2
+t:0x798c7b3a20d CPU:00 THREAD          :THDEAD             pid:180232 tid:3 priority:50 policy:1
+t:0x798c7b3b2e5 CPU:03 THREAD          :THRUNNING          pid:1 tid:8 priority:255 policy:8
+t:0x798c7b3b45a CPU:01 THREAD          :THRUNNING          pid:1 tid:6 priority:255 policy:8
+t:0x798c7b3f165 CPU:00 THREAD          :THRUNNING          pid:163844 tid:1 priority:10 policy:2
+t:0x798c7b3f5a7 CPU:03 SYSTEM          :IPI_64             ipicmd = 0x000001,  RESCHED
+
+##### PROCDESTROY du fautif #####
+t:0x798c88040b1 CPU:00 SYSTEM          :SEND_IPI_64        target_cpu = 1, ipicmd = 0x000001 RESCHED
+t:0x798c880a64d CPU:00 KER_EXIT        :MSG_REPLYV/15      ret_val:0 empty:0x00000000
+t:0x798c880e841 CPU:01 THREAD          :THREADY            pid:1 tid:6 priority:255 policy:8
+t:0x798c880f8dd CPU:00 PROCESS         :PROCDESTROY        ppid:163844 pid:180232
+t:0x798c88108f9 CPU:01 THREAD          :THREADY            pid:1 tid:2 priority:0 policy:1
+t:0x798c88143d1 CPU:01 THREAD          :THRUNNING          pid:1 tid:6 priority:255 policy:8
+t:0x798c8816859 CPU:01 SYSTEM          :IPI_64             ipicmd = 0x000001,  RESCHED

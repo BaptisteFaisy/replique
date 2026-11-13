@@ -44,7 +44,8 @@ src/<projet>-demo.html  ──►  tools/build_site.py  ──►  docs/
 | `README.md` | ce document (schéma + pièges) |
 | `ADOPTER.md` | guide d'adoption pas-à-pas pour un autre projet |
 | `build-image.sh` | chaîne générique : qcc → mkifs → mkxfs → diskimage |
-| `guest-qemu.sh` | lancement QEMU générique (la ligne qui marche est en commentaire) |
+| `guest-qemu.sh` | lancement QEMU générique (la ligne qui marche est en commentaire ; `--serie-socket` pour une console pilotable) |
+| `ser-console.py` | pilote l'invité par la console série (socket) : `pidin`, un scénario, figer une trace |
 | `web.py` | vitrine HTTP, **généralisée** (tout passe par l'environnement) |
 | `systemd/replique-ems-qemu.service` | modèle d'unité systemd utilisateur (invité) |
 | `systemd/replique-ems-web.service` | modèle d'unité systemd utilisateur (vitrine) |
@@ -68,6 +69,26 @@ QNX_EMS_SERIE=~/demo-img/serial.log QNX_EMS_MON=~/demo-img/mon.sock \
 QNX_EMS_PPM=~/demo-img/web-vga.ppm QNX_EMS_PORT=8091 QNX_EMS_TITRE="Démo QNX 8.0" \
     python3 web.py
 ```
+
+## Piloter l'invité — le canal série (socket)
+
+Par défaut `-serial file:<log>` n'écrit que la sortie de l'invité. Avec
+`--serie-socket <sock>` (ou `QNX_EMS_SERIE_SOCK`), QEMU expose la console
+série sur un **socket UNIX** : le journal reste écrit dans `--serie`
+(`logfile=`), et `ser-console.py` peut en plus **écrire** dans l'invité —
+lancer `pidin`, un scénario, figer une trace — **sans reconstruire l'image** ni
+toucher l'écran VGA.
+
+```sh
+./guest-qemu.sh --ifs ~/demo-img/ifs.bin --serie ~/demo-img/serial.log \
+    --serie-socket ~/demo-img/ser.sock --qemu … --prefixe … --detacher
+./ser-console.py --socket ~/demo-img/ser.sock 'pidin'          # lit
+./ser-console.py --socket ~/demo-img/ser.sock --file cmd.sh    # joue un script
+```
+
+C'est ce canal qui a permis la trace **« wide »** du projet Réplique
+(`image/exp-wide.sh`) : `tracelogger -w` lancé **après** le boot, dans un
+invité séparé, sans régresser l'affichage VGA de la démo publique.
 
 ## Les pièges déjà frappés (messages exacts, vérifiés)
 

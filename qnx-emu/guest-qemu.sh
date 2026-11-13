@@ -23,8 +23,14 @@
 #
 # Usage :
 #   guest-qemu.sh --ifs <ifs.bin> [--serie <log>] [--moniteur <sock>] \
+#                 [--serie-socket <sock>] \
 #                 [--memoire <Mo>] [--cpu <modèle>] [--smp <n>] \
 #                 [--qemu <binaire>] [--prefixe <dir>] [--detacher] [--net <port>]
+#
+# --serie-socket remplace `-serial file:` par une console série sur socket
+# UNIX (`-chardev socket` + `-serial chardev`) : le journal reste écrit dans
+# --serie (logfile=), et ser-console.py peut en plus ÉCRIRE dans l'invité
+# (lancer pidin, un scénario, figer une trace) sans reconstruire l'image.
 #
 # Tout peut aussi passer par l'environnement (QNX_EMS_*), cf. systemd/ et web.py.
 set -eu
@@ -34,6 +40,7 @@ die() { echo "guest-qemu: $*" >&2; exit 1; }
 
 IFS_BIN="${QNX_EMS_IFS:-}"
 SERIE="${QNX_EMS_SERIE:-serial.log}"
+SERIE_SOCK="${QNX_EMS_SERIE_SOCK:-}"
 MON="${QNX_EMS_MON:-mon.sock}"
 MEM="${QNX_EMS_MEM:-2048}"
 CPU="${QNX_EMS_CPU:-max}"
@@ -48,6 +55,7 @@ parse_args() {
         case "$1" in
             --ifs)      IFS_BIN="$2"; shift 2 ;;
             --serie)    SERIE="$2"; shift 2 ;;
+            --serie-socket) SERIE_SOCK="$2"; shift 2 ;;
             --moniteur) MON="$2"; shift 2 ;;
             --memoire)  MEM="$2"; shift 2 ;;
             --cpu)      CPU="$2"; shift 2 ;;
@@ -74,6 +82,7 @@ main() {
     parse_args "$@"
     export LD_LIBRARY_PATH="$QPREFIX/usr/lib/x86_64-linux-gnu:$QPREFIX/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}"
     mkdir -p "$(dirname "$SERIE")" "$(dirname "$MON")" 2>/dev/null || true
+    [ -z "$SERIE_SOCK" ] || mkdir -p "$(dirname "$SERIE_SOCK")" 2>/dev/null || true
     # La commande QEMU est construite ICI (dans main, pas dans une fonction :
     # `set --` d'une fonction ne modifie pas $@ du script en sh POSIX).
     set -- "$QEMU" \
@@ -82,9 +91,16 @@ main() {
         -kernel "$IFS_BIN" \
         -object rng-random,filename=/dev/urandom,id=rng0 \
         -device virtio-rng-pci,rng=rng0 \
-        -display none -vga std \
-        -serial "file:$SERIE" \
-        -monitor "unix:$MON,server,nowait"
+        -display none -vga std
+    if [ -n "$SERIE_SOCK" ]; then
+        # console série sur socket UNIX : journal dans $SERIE, entrée pilotable
+        set -- "$@" \
+            -chardev "socket,id=ser0,path=$SERIE_SOCK,server=on,wait=off,logfile=$SERIE" \
+            -serial chardev:ser0
+    else
+        set -- "$@" -serial "file:$SERIE"
+    fi
+    set -- "$@" -monitor "unix:$MON,server,nowait"
     # $NET est volontairement non quoté : déjà une chaîne espacée complète
     # shellcheck disable=SC2086
     if [ -n "$NET" ]; then
