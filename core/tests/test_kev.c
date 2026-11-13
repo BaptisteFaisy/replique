@@ -7,6 +7,7 @@
 #include "replique/kev.h"
 #include "replique/types.h"
 #include "test_util.h"
+#include <stdlib.h>
 
 #define MAX_EVENTS 4u
 #define BUF_MAX (REPLIQUE_HEADER_SIZE + MAX_EVENTS * REPLIQUE_RECORD_SIZE)
@@ -335,6 +336,61 @@ static void test_overflow(void)
   TU_EQ(n_out, 1u, "lecture partielle : 1 événement écrit, pas de reprise");
 }
 
+/* --------------------------------------------- dimensionnement des tampons */
+
+/* Le nombre d'événements annoncé par l'en-tête : c'est lui qui permet à
+ * l'appelant de dimensionner son tampon — une trace réelle n'a pas de
+ * taille fixe (la trace QNX 8.0 de preuve en a 13 294). */
+static void test_event_count(void)
+{
+  uint8_t buf[BUF_MAX];
+  replique_event ev[3];
+  size_t len;
+
+  fill_sample(ev, 3u);
+  len = build_container(buf, ev, 3u, 0u, REPLIQUE_TIME_UNIT_NS);
+  TU_EQ(replique_kev_event_count(buf, len), 3u, "n_events annoncé par l'en-tête");
+  TU_EQ(replique_kev_event_count(buf, 4u), 0u, "en-tête trop court -> 0");
+  TU_EQ(replique_kev_event_count(buf, len - 1u), 0u, "longueur fausse -> 0");
+}
+
+/* Une trace PLUS GRANDE que le tampon interne du cœur : c'est le cas réel.
+ * Avec un tampon dimensionné par l'appelant, la lecture passe ; c'est
+ * exactement ce que les pilotes font depuis la correction. */
+static void test_large_trace(void)
+{
+  const size_t n = REPLIQUE_MAX_EVENTS + 1000u;
+  replique_event *ev = (replique_event *)malloc(n * sizeof *ev);
+  replique_event *back = (replique_event *)malloc(n * sizeof *back);
+  uint8_t *buf = (uint8_t *)malloc(REPLIQUE_HEADER_SIZE + n * REPLIQUE_RECORD_SIZE);
+  size_t len;
+  size_t n_out = 0u;
+  size_t i;
+
+  TU_CHECK(ev && back && buf, "allocation des tampons de test");
+  if (!ev || !back || !buf) {
+    free(ev);
+    free(back);
+    free(buf);
+    return;
+  }
+  for (i = 0u; i < n; ++i) {
+    memset(&ev[i], 0, sizeof ev[i]);
+    ev[i].ts = 1000u + i;
+    ev[i].cls = REPLIQUE_EV_THREAD_STATE;
+  }
+  len = build_container(buf, ev, n, 0u, REPLIQUE_TIME_UNIT_NS);
+  TU_EQ(replique_kev_event_count(buf, len), n, "n_events de la grosse trace");
+  TU_EQ(replique_kev_parse(buf, len, back, n, &n_out), REPLIQUE_STATUS_OK,
+        "grosse trace : lecture sans erreur avec un tampon dimensionné");
+  TU_EQ(n_out, n, "tous les événements relus");
+  TU_EQ(replique_kev_parse(buf, len, back, 16u, &n_out), REPLIQUE_ERR_OVERFLOW,
+        "grosse trace : tampon trop petit -> OVERFLOW (jamais de reprise)");
+  free(ev);
+  free(back);
+  free(buf);
+}
+
 int main(void)
 {
   test_roundtrip();
@@ -349,5 +405,7 @@ int main(void)
   test_ts_not_monotonic();
   test_ts_equal_allowed();
   test_overflow();
+  test_event_count();
+  test_large_trace();
   return tu_report("kev");
 }

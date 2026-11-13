@@ -19,6 +19,11 @@ int replique_kev_parse_diag(const uint8_t *buf, size_t len,
 /* En-tête seul : valide magic/version/flags/longueur/CRC. */
 int replique_kev_header(const uint8_t *buf, size_t len, replique_header *hdr);
 
+/* Nombre d'événements annoncés par l'en-tête (0 si l'en-tête est invalide).
+ * Le cœur n'alloue jamais : c'est l'appelant qui dimensionne son tampon sur
+ * cette valeur — une trace réelle n'a pas de taille fixe. */
+size_t replique_kev_event_count(const uint8_t *buf, size_t len);
+
 /* Écrit un conteneur RKV1 (générateur de fixtures C + tests). */
 int replique_kev_write(const replique_event *ev, size_t n, uint32_t flags,
                        uint32_t time_unit, uint8_t *out, size_t cap,

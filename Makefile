@@ -25,7 +25,7 @@ TARGET_OBJ  := $(patsubst target/declic/%.c,$(BUILD)/tobj/%.o,$(TARGET_SRC))
 DECIC_TEST  := $(if $(wildcard core/tests/declic_test.c),$(BUILD)/declic-test,)
 DRIVER_IO   := core/tests/driver_io.c
 
-.PHONY: all build test unit differential determinism fixtures guard clean help \
+.PHONY: all build test unit differential differential-trace preuve-trace determinism fixtures guard clean help \
         target-qnx oracle
 .SILENT: unit
 
@@ -84,6 +84,15 @@ unit-python:
 differential: build fixtures
 	tests/differential_c_python.sh
 
+# Trace QNX 8.0 RÉELLE (« wide ») : la chaîne complète doit être identique
+# en C et en Python. Ni QNX ni SDP requis (~3 s).
+differential-trace: build
+	tests/differential_trace_reelle.sh
+
+# Régénère les preuves de l'autopsie sur la trace réelle (artefacts figés).
+preuve-trace: build
+	$(PYTHON) tests/preuve_trace_reelle.py
+
 determinism: build fixtures
 	tests/determinism.sh
 
@@ -97,7 +106,7 @@ guard:
 	$(PYTHON) .github/checks/purity_guard.py
 	$(PYTHON) .github/ci-budget/check_timeouts.py
 
-test: guard build fixtures unit unit-python differential determinism
+test: guard build fixtures unit unit-python differential differential-trace determinism
 	@echo "MAKE TEST VERT — sans QNX, sans cible, sans licence (S8)"
 
 # Hors CI : nécessite le SDP QNX 8.0 (qcc + mkifs). Jamais requis par `make test`.
