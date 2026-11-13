@@ -14,9 +14,16 @@ void replique_verdict_set(replique_verdict *v, unsigned code, uint64_t ts,
 void replique_verdict_sanitize_detail(char *detail);
 
 /* Chaîne complète (figée, §3.2) : parse → wait-for → deadlock → inversion →
- * rejeu. Une erreur de parse arrête tout : un seul verdict PARSE_ERROR. */
+ * rejeu. Une erreur de parse arrête tout : un seul verdict PARSE_ERROR.
+ *
+ * Le cœur n'alloue jamais : l'appelant fournit le tampon d'événements
+ * (events/ecap) et le tampon de décisions (res->decisions/res->cap). Si le
+ * tampon d'événements est NULL, le cœur retombe sur son tampon interne
+ * (REPLIQUE_MAX_EVENTS) — les traces réelles doivent toujours être chargées
+ * avec un tampon dimensionné sur l'en-tête (replique_kev_event_count). */
 int replique_pipeline(const uint8_t *buf, size_t len,
                       const replique_sched_config *cfg,
                       replique_verdict *verdicts, size_t vcap, size_t *n_verdicts,
-                      replique_replay_result *res);
+                      replique_replay_result *res, replique_event *events,
+                      size_t ecap);
 #endif

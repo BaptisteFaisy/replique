@@ -49,6 +49,8 @@ jobs:
         run: make unit-python
       - name: Différentiel C ↔ Python
         run: make differential
+      - name: Différentiel sur la trace QNX 8.0 réelle
+        run: make differential-trace
       - name: Déterminisme du rejeu (P1)
         run: make determinism
       - name: Différentiel contre l'oracle traceprinter (S4)

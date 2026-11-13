@@ -118,6 +118,39 @@ c'est-à-dire exactement le phénomène que l'exigence C5 cherche à détecter.
 - **le HAM et le service de noms ont disparu** : le déclencheur de terminaison
   est la scrutation de `/proc`, à 50 ms près.
 
+#### L'autopsie sur la trace RÉELLE (13/11/2026)
+
+La trace « wide » (823 Ko, 21 652 événements logiques) est désormais traversée
+par **toute** la chaîne, et pas seulement par le décodeur. Un blocage l'a
+empêché : le cœur C avait un tampon d'événements **figé à 8 192** entrées, donc
+la trace réelle (13 294 événements RKV1, 4 418 décisions) s'arrêtait sur un
+`PARSE_ERROR` — le C ne pouvait pas lire une trace de production, là où le
+jumeau Python, lui, n'a pas de plafond.
+
+Le cœur reste **pur** (aucune allocation) : il prend désormais ses tampons chez
+l'appelant, dimensionnés sur l'en-tête (`replique_kev_event_count`), et les
+pilotes — qui ont, eux, le droit d'allouer — les allouent à la taille voulue.
+
+| Preuve | Commande | Résultat observé |
+|---|---|---|
+| Le C lit la trace réelle | `make differential-trace` (qui convertit `docs/preuves/trace-qnx800-wide.kev` puis l'analyse) | `OK` (13 294 événements) + `REPLAY_DETERMINISTIC` (4 418 décisions) — **plus de `PARSE_ERROR`** |
+| C == Python, sur la trace réelle | `make differential-trace` | **3 comparaisons, 0 écart** : décodage `.kev → RKV1` (425 440 octets identiques), verdicts d'autopsie identiques, hachage de rejeu identique (`3463212668984122407`) |
+| La preuve est gelée | `python3 tests/preuve_trace_reelle.py` | `docs/preuves/analyse-trace-reelle.vd` + `docs/preuves/analyse-trace-reelle.md` |
+
+Ce que l'autopsie **dit** du bug réel : les deux threads de travail du
+processus fautif (pid 180232) sont bien **bloqués**, et l'**héritage de
+priorité** est visible (68 changements de priorité, dont 58 sur le thread du
+serveur de synchronisation, qui monte à la priorité 60 puis la rend).
+
+Ce qu'elle **ne peut pas** dire, et qu'elle assume : le graphe d'attente. La
+trace n'expose pas l'identifiant de l'objet de synchronisation — en QNX 8, un
+mutex `pthread` contentieux passe par un `MsgSend` au serveur de sync, et la
+trace n'en recopie que l'en-tête du message, pas le corps où vit l'identifiant.
+Aucun `DEADLOCK_FOUND` n'est donc produit sur cette trace, et le projet ne
+prétend pas le contraire. En revanche la trace **expose** le canal (`rcvid`)
+de chaque envoi et le pid de son détenteur : de quoi reconstruire la causalité
+des messages (trou R5), pas l'identité du mutex.
+
 #### Ce qui reste ouvert (assumé, pas masqué)
 
 - la trace **de démonstration** est capturée en mode « fast » (le processus qui
@@ -136,11 +169,20 @@ c'est-à-dire exactement le phénomène que l'exigence C5 cherche à détecter.
   « Lossless » vers le modèle sémantique complet reste à faire (les ids de
   mutex et les numéros de séquence ne sont pas exposés par la trace).
 
+- **le graphe d'attente n'est pas constructible sur une trace réelle** : la
+  trace QNX 8.0 n'expose pas l'identifiant de l'objet de synchronisation (le
+  mutex `pthread` contentieux passe par un `MsgSend` au serveur de sync, dont
+  le corps de message n'est pas recopié). Le chemin qui reste ouvert : le
+  **canal** (`rcvid`) et le pid de son détenteur *sont* tracés — reconstruire
+  le graphe d'attente sur les canaux de messages (et non sur les mutex) est
+  la suite naturelle ;
+
 ## 4. Comment reproduire
 
 ```sh
 make test                                   # toute la chaîne, sans QNX
 make differential                            # 40 comparaisons C↔Python
+make differential-trace                     # C == Python sur la trace QNX 8.0 réelle
 make determinism                             # P1 : 5 rejeux identiques
 build/analyze fixtures/deadlock.rkv1        # le coupable en trois lignes
 build/replay-dump fixtures/race.rkv1 --whatif 402=20   # le « et si »

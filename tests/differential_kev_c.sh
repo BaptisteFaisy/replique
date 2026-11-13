@@ -16,7 +16,7 @@ command -v python3 >/dev/null 2>&1 || { echo "AVERTISSEMENT : python3 absent, te
     target/declic/kev_rkv1.c target/declic/kev_rkv1_tool.c -o "$TMP/kevtool"
 
 ok=0; ko=0
-for kev in docs/preuves/trace-qnx800.kev; do
+for kev in docs/preuves/trace-qnx800.kev docs/preuves/trace-qnx800-wide.kev; do
   [ -f "$kev" ] || continue
   PYTHONPATH=host python3 -m replique.kev2rkv1 "$kev" -o "$TMP/py.rkv1" 2>/dev/null
   "$TMP/kevtool" "$kev" "$TMP/c.rkv1"
