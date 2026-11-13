@@ -45,7 +45,8 @@
 #define DECLIC_RDA1_MAX_SECTIONS 8u
 
 /* Noms de sections (ordre figé de l'archive standard). */
-#define DECLIC_SECTION_TRACE "trace"      /* trace noyau convertie .rkv1 */
+#define DECLIC_SECTION_TRACE "trace"      /* trace noyau brute (.kev) */
+#define DECLIC_SECTION_RKV1 "rkv1"        /* trace convertie en RKV1 (E1) */
 #define DECLIC_SECTION_PIDIN "pidin"      /* sortie de `pidin` */
 #define DECLIC_SECTION_SLOG2 "slog2"      /* sortie de `slog2info` */
 #define DECLIC_SECTION_CORE "core"        /* core dump (dumper) */
@@ -79,6 +80,8 @@ typedef struct declic_section {
 typedef struct declic_artifacts {
   const uint8_t *trace;
   size_t trace_len;
+  const uint8_t *rkv1;      /* trace convertie en conteneur RKV1 (facultatif) */
+  size_t rkv1_len;
   const uint8_t *pidin;
   size_t pidin_len;
   const uint8_t *slog2;

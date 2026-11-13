@@ -1,6 +1,7 @@
 build/
 *.o
 *.a
+target/declic/declic
 *.rkv1.tmp
 __pycache__/
 *.py[cod]

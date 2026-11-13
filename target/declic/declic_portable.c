@@ -163,7 +163,8 @@ int declic_archive_build_sections(const declic_section *secs, size_t n_sections,
 int declic_archive_build(const declic_artifacts *art, uint8_t *out, size_t cap,
                           size_t *out_len)
 {
-  declic_section secs[5];
+  declic_section secs[6];
+  size_t n = 5u;
   const uint8_t *manifest_bytes = (const uint8_t *)(art ? art->manifest : NULL);
 
   if (!art) {
@@ -186,8 +187,14 @@ int declic_archive_build(const declic_artifacts *art, uint8_t *out, size_t cap,
          sizeof DECLIC_SECTION_MANIFEST);
   secs[4].data = manifest_bytes;
   secs[4].len = art->manifest_len;
+  if (art->rkv1 != NULL && art->rkv1_len > 0u) {
+    memcpy(secs[5].name, DECLIC_SECTION_RKV1, sizeof DECLIC_SECTION_RKV1);
+    secs[5].data = art->rkv1;
+    secs[5].len = art->rkv1_len;
+    n = 6u;
+  }
 
-  return declic_archive_build_sections(secs, 5u, out, cap, out_len);
+  return declic_archive_build_sections(secs, n, out, cap, out_len);
 }
 
 int declic_archive_open(const uint8_t *buf, size_t len,
