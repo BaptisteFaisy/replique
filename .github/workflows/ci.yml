@@ -51,6 +51,12 @@ jobs:
         run: make differential
       - name: Déterminisme du rejeu (P1)
         run: make determinism
+      - name: Différentiel contre l'oracle traceprinter (S4)
+        # Régénère si le SDP est sur le runner, sinon compare au .tp.txt voisin ;
+        # notre décodeur lit le .kev BINAIRE (sys/trace.h), pas le texte oracle.
+        run: |
+          export QNX_HOST="${QNX_HOST:-$HOME/qnx800/host/linux/x86_64}"
+          make oracle
       - name: Artefacts (fixtures + sorties canoniques)
         if: always()
         uses: actions/upload-artifact@v4
