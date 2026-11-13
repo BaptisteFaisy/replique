@@ -67,7 +67,7 @@ tourne, sous QEMU, et la démonstration s'y exécute de bout en bout.
 |---|---|
 | `qcc -V gcc_ntox86_64` compile **Déclic** et les trois générateurs de bogues en `-Werror` | la partie cible n'est pas de la fiction : elle compile contre le vrai SDK |
 | l'invité démarre avec `--cpu max` + RNG virtio + `-kernel ifs.bin` | l'image de `image/` est un invité QNX 8.0 qui démarre et rend la main |
-| la démo s'exécute : `bug-deadlock` s'interbloque, `slay` le termine, **Déclic assemble l'archive sur la cible** | archive 16 137 octets sha256 `3e2f0f44…`, `sections trace=7484 rkv1=2336 pidin=5278 slog2=355 core=58 manifest=114` (démo **publique**, invitée du site) |
+| la démo s'exécute : `bug-deadlock` s'interbloque, `slay` le termine, **Déclic assemble l'archive sur la cible** | archive 16 137 octets, `sections trace=7484 rkv1=2336 pidin=5278 slog2=355 core=58 manifest=114` (démo **publique**, invitée du site ; l'empreinte change à chaque exécution, l'artefact figé est `docs/preuves/archive-declic-rkv1.rda1`) |
 | la trace est **figée au moment du crash** (essai E2) | `tracelogger -d1 -E -r -f <fichier> -S 16M -s 0`, arrêté par SIGINT à la terminaison |
 | **l'oracle officiel lit cette trace** | `traceprinter` (hôte Linux) décode les 324 lignes d'événements noyau, en-tête « QNX 8.0.0 / 2026-06-05 » → `docs/preuves/` |
 | **l'archive porte une section `rkv1` convertie SUR LA CIBLE** | 6 sections, `rkv1` = 3 360 octets, **byte-identique** au Python (sha256 `72d8e33c…`) |
@@ -90,7 +90,7 @@ La conversion `.kev` → `RKV1` (l'oracle devient l'entrée du cœur portable) e
 
 | Implémentation | Où | Preuve |
 |---|---|---|
-| Python | `host/replique/kev_reader.py` + `kev2rkv1.py` | comptes par type **identiques** à `traceprinter` sur la trace de référence et sur la trace « wide » (`tests/differential_kev_oracle.py`, cible `make oracle`) |
+| Python | `host/replique/kev_reader.py` + `kev2rkv1.py` | comptes par type **identiques** à `traceprinter`, et **champs** (`pid`, `tid`, priorité, politique) identiques sur **10 989** événements d'état de thread (`tests/differential_kev_oracle.py`, cible `make oracle`) |
 | C11 pur | `target/declic/kev_rkv1.c` (compilé par `qcc` contre le vrai SDK) | **octets identiques** au Python sur les deux traces (`tests/differential_kev_c.sh`) |
 
 Et surtout : **c'est le C qui tourne sur la cible**. Déclic convertit la trace
@@ -99,6 +99,12 @@ sixième section `rkv1`, **byte-identique** à ce que produit le Python sur
 l'hôte à partir du même `.kev` (`docs/preuves/archive-declic-rkv1.rda1`, test
 `host/tests/test_rda1.py`). Le cœur portable lit donc la trace **directement
 issue de la cible**, sans étape hôte.
+
+Le RKV1 produit n'est plus une transcription grossière : il porte les
+**priorités réelles** des threads (politique + priorité de base à la création)
+et les **changements de priorité observés** (`PRIO_CHANGE`) — dont les
+**héritages** (un thread de serveur qui passe de 10 à 24 puis revient à 10),
+c'est-à-dire exactement le phénomène que l'exigence C5 cherche à détecter.
 
 #### Les trois faits QNX 8.0 qui ont coûté le plus cher
 

@@ -1,12 +1,21 @@
 """kev2rkv1.py — adaptateur `.kev` QNX 8.0 (binaire) → conteneur `RKV1`.
 
 Tranche l'essai E1 du cahier des charges : le `.kev` est lu **directement**
-(format documenté par `sys/trace.h`, cf. `kev_reader.py`), sans passer par le
-texte de `traceprinter`. La correspondance est un **sous-ensemble** assumé du
-modèle `RKV1` (CONTRACT.md §2) : cycle de vie process/thread, états de thread,
-message passing. Les champs non exposés par la trace (id de mutex, valeur de
-sémaphore, numéro de séquence) restent à 0 — la trace dit *ce qui se passe*,
-pas *pourquoi* (c'est le postulat du projet).
+(format documenté par `sys/trace.h`), sans passer par le texte de `traceprinter`.
+La correspondance est un **sous-ensemble assumé** du modèle `RKV1`
+(CONTRACT.md §2) : cycle de vie process/thread, états de thread, message
+passing, changements de priorité.
+
+Ce que la trace donne réellement (vérifié contre l'oracle `traceprinter` sur
+10 989 événements d'état de thread) :
+
+  * un événement d'état de thread porte `(pid, tid)` **et** `(priorité,
+    politique)` — la seconde moitié de la combinaison ;
+  * un événement de message porte `(rcvid, pid)` pour `SND`/`REC`, et
+    `(tid, pid)` pour `REPLY`/`ERROR` ; le `pid` est celui du **détenteur du
+    canal** (le serveur), pas celui de l'expéditeur ;
+  * la trace n'expose **ni** identifiant de mutex, **ni** valeur de sémaphore,
+    **ni** numéro de séquence : ces champs restent à 0.
 
 Usage :
     python3 -m replique.kev2rkv1 trace.kev -o trace.rkv1
@@ -16,7 +25,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from typing import List
+from typing import Dict, List, Tuple
 
 from replique import kev as rkv
 from replique import kev_reader as kr
@@ -39,9 +48,10 @@ _STATE_MAP = {
     17: (3, 3),                                    # SEM -> SEMAPHORE
     30: (3, 2),                                    # SEND_NOTIFY -> MSGSEND
 }
+# politiques QNX (sched.h) -> politique du contrat (§2.5)
+_POLICY_MAP = {1: 0, 2: 1, 4: 2}        # SCHED_FIFO/RR/SPORADIC
 _COMM_MAP = {0: m.EV_MSG_SEND, 2: m.EV_MSG_RECEIVE, 10: m.EV_MSG_REPLY,
              11: m.EV_MSG_ERROR}
-_CTL_TIME = kr.CTL_TIME
 
 
 def _event(ts, pid, tid, cls, sub, a=0, b=0, c=0):
@@ -49,21 +59,53 @@ def _event(ts, pid, tid, cls, sub, a=0, b=0, c=0):
                    a & 0xFFFFFFFF, b & 0xFFFFFFFF, c & 0xFFFFFFFF)
 
 
-def _map_thread(e, out):
+def _prio_policy(e):
+    """(priorité, politique) porté par un événement d'état de thread."""
+    if len(e.words) >= 4:
+        return e.words[2], e.words[3]
+    return None, None
+
+
+def _first_priorities(events) -> Dict[Tuple[int, int], Tuple[int, int]]:
+    """Priorité/politique vues à la PREMIÈRE activité de chaque thread."""
+    table: Dict[Tuple[int, int], Tuple[int, int]] = {}
+    for e in events:
+        if e.cls != kr.CLS_PROC_THREAD or e.code not in _STATE_MAP:
+            continue
+        prio, policy = _prio_policy(e)
+        if prio is None:
+            continue
+        key = (e.pid, e.tid)
+        if key not in table:
+            table[key] = (prio, policy)
+    return table
+
+
+def _map_thread(e, out, first_prio, seen_prio):
     pid, tid = e.pid, e.tid
     if e.code == kr.TH_CREATE:
-        out.append(_event(e.ts, pid, tid, m.EV_THREAD_CREATE, 0, 0))
+        prio, policy = first_prio.get((pid, tid), (None, None))
+        sub = _POLICY_MAP.get(policy, 0) if policy is not None else 0
+        out.append(_event(e.ts, pid, tid, m.EV_THREAD_CREATE, sub,
+                          prio if prio is not None else 0))
     elif e.code == kr.TH_DESTROY:
         out.append(_event(e.ts, pid, tid, m.EV_THREAD_DESTROY, 0, 0))
     elif e.code in _STATE_MAP:
         sub, reason = _STATE_MAP[e.code]
         out.append(_event(e.ts, pid, tid, m.EV_THREAD_STATE, sub, reason))
+        prio, _policy = _prio_policy(e)
+        if prio is not None:
+            key = (pid, tid)
+            previous = seen_prio.get(key)
+            if previous is not None and previous != prio:
+                out.append(_event(e.ts, pid, tid, m.EV_PRIO_CHANGE, 0,
+                                  prio, previous, 0))
+            seen_prio[key] = prio
     elif e.code in (kr.P_CREATE, kr.P_CREATE_NAME):
         ppid = e.words[0] if e.words else 0
         p = e.words[1] if len(e.words) > 1 else 0
         out.append(_event(e.ts, p, 0, m.EV_PROCESS_CREATE, 0, ppid))
     elif e.code in (kr.P_DESTROY, kr.P_DESTROY_NAME):
-        ppid = e.words[0] if e.words else 0
         p = e.words[1] if len(e.words) > 1 else 0
         out.append(_event(e.ts, p, 0, m.EV_PROCESS_DESTROY, 0, 0))
     # TH_NAME : informationnel, hors RKV1 — ignoré
@@ -73,8 +115,17 @@ def _map_comm(e, out):
     cls = _COMM_MAP.get(e.code)
     if cls is None:
         return
-    tid = e.words[0] if e.words else 0  # RCVID/tid côté émetteur (partiel)
-    out.append(_event(e.ts, 0, tid, cls, 0, 0))
+    w0 = e.words[0] if e.words else 0
+    w1 = e.words[1] if len(e.words) > 1 else 0
+    if e.code in (0, 2):
+        # w0 = rcvid (canal), w1 = pid du détenteur du canal.
+        # MSG_SEND : ce détenteur EST le destinataire -> a = w1.
+        # MSG_RECEIVE : le contrat veut le pid SOURCE, que la trace n'expose
+        # pas -> a = 0 (le pid du canal reste dans la colonne pid).
+        out.append(_event(e.ts, w1, 0, cls, 0, w1 if e.code == 0 else 0))
+    else:
+        # REPLY / ERROR : w0 = tid du répondant, w1 = pid du répondant.
+        out.append(_event(e.ts, w1, w0, cls, 0, 0))
 
 
 def _map_system(e, out):
@@ -87,10 +138,12 @@ def _map_system(e, out):
 def convert(blob: bytes) -> bytes:
     """Décode un `.kev` et rend un contenu `RKV1` (32+32*n octets)."""
     hdr, events = kr.logical_events(blob)
+    first_prio = _first_priorities(events)
+    seen_prio: Dict[Tuple[int, int], int] = {}
     out: List[m.Event] = []
     for e in events:
         if e.cls == kr.CLS_PROC_THREAD:
-            _map_thread(e, out)
+            _map_thread(e, out, first_prio, seen_prio)
         elif e.cls == kr.CLS_COMM:
             _map_comm(e, out)
         elif e.cls in (kr.CLS_SYSTEM, kr.CLS_INT):

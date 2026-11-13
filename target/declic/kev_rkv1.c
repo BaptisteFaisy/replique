@@ -15,11 +15,10 @@ enum { C_CONTROL = 1, C_INT = 3, C_PROC_THREAD = 4, C_SYSTEM = 5, C_COMM = 7 };
 enum { EV_THREAD_STATE = 1, EV_PROCESS_CREATE = 2, EV_PROCESS_DESTROY = 3,
        EV_THREAD_CREATE = 4, EV_THREAD_DESTROY = 5, EV_MSG_SEND = 6,
        EV_MSG_RECEIVE = 7, EV_MSG_REPLY = 8, EV_MSG_ERROR = 9,
-       EV_TIMER = 14, EV_INTERRUPT = 15 };
+       EV_TIMER = 14, EV_INTERRUPT = 15, EV_PRIO_CHANGE = 17 };
 /* codes QNX process/thread */
-enum { TH_CREATE = 24, TH_DESTROY = 25, TH_NAME = 0x140,
-       P_CREATE = 0x40, P_DESTROY = 0x80, P_CREATE_NAME = 0xC0,
-       P_DESTROY_NAME = 0x100 };
+enum { TH_CREATE = 24, TH_DESTROY = 25, P_CREATE = 0x40, P_DESTROY = 0x80,
+       P_CREATE_NAME = 0xC0, P_DESTROY_NAME = 0x100 };
 
 typedef struct {
     unsigned long long ts;
@@ -33,6 +32,14 @@ typedef struct {
     ev_t *v;
     size_t n, cap;
 } evbuf_t;
+
+/* Une entrée par thread : première priorité observée + dernière connue. */
+typedef struct {
+    unsigned int pid, tid;
+    unsigned int prio, policy;
+    unsigned int last;
+    unsigned char used, has_prio, has_last;
+} tslot_t;
 
 static unsigned int rd32(const unsigned char *p) {
     return (unsigned int)p[0] | ((unsigned int)p[1] << 8) |
@@ -96,6 +103,21 @@ static int cmp_ev(const void *a, const void *b) {
     if (x->ts < y->ts) return -1;
     if (x->ts > y->ts) return 1;
     return (x->idx < y->idx) ? -1 : (x->idx > y->idx);
+}
+
+/* Table de hachage ouverte : (pid,tid) -> première/dernière priorité. */
+static tslot_t *tbl_get(tslot_t *t, size_t cap, unsigned int pid,
+                        unsigned int tid, int create) {
+    size_t i = (size_t)((pid * 2654435761u) ^ (tid * 40503u)) & (cap - 1u);
+    while (t[i].used) {
+        if (t[i].pid == pid && t[i].tid == tid) return &t[i];
+        i = (i + 1u) & (cap - 1u);
+    }
+    if (!create) return NULL;
+    t[i].used = 1; t[i].pid = pid; t[i].tid = tid;
+    t[i].prio = 0; t[i].policy = 0; t[i].last = 0;
+    t[i].has_prio = 0; t[i].has_last = 0;
+    return &t[i];
 }
 
 /* Traite un record (combine CB/CC/CE) et l'ajoute à `out` au besoin. */
@@ -187,50 +209,128 @@ static int state_map(unsigned int code, unsigned int *sub, unsigned int *reason)
     return 0;
 }
 
-/* Écrit un record RKV1 (32 o) ; rend 1 si l'événement est mappé, 0 sinon. */
-static int map_event(const ev_t *e, unsigned char *rec) {
-    unsigned int pid = 0, tid = 0, cls = 0, sub = 0, a = 0, b = 0, c = 0;
-    unsigned int w0 = e->nw > 0 ? e->w[0] : 0, w1 = e->nw > 1 ? e->w[1] : 0;
-    if (e->cls == C_PROC_THREAD) {
-        if (e->code == TH_CREATE) { cls = EV_THREAD_CREATE; pid = w0; tid = w1; }
-        else if (e->code == TH_DESTROY) { cls = EV_THREAD_DESTROY; pid = w0; tid = w1; }
-        else if (state_map(e->code, &sub, &a) == 0) {
-            cls = EV_THREAD_STATE; pid = w0; tid = w1;
-        } else if (e->code == P_CREATE || e->code == P_CREATE_NAME) {
-            cls = EV_PROCESS_CREATE; pid = w1; a = w0;
-        } else if (e->code == P_DESTROY || e->code == P_DESTROY_NAME) {
-            cls = EV_PROCESS_DESTROY; pid = w1;
-        } else {
-            return 0; /* noms, non mappé */
-        }
-    } else if (e->cls == C_COMM) {
-        if (e->code == 0) cls = EV_MSG_SEND;
-        else if (e->code == 2) cls = EV_MSG_RECEIVE;
-        else if (e->code == 10) cls = EV_MSG_REPLY;
-        else if (e->code == 11) cls = EV_MSG_ERROR;
-        else return 0;
-        tid = w0;
-    } else if (e->cls == C_INT) {
-        cls = EV_INTERRUPT; pid = w0; tid = w1;
-    } else if (e->cls == C_SYSTEM && e->code == 0x12) {
-        cls = EV_TIMER; pid = w0; tid = w1;
-    } else {
-        return 0;
-    }
-    wr64(rec, e->ts); wr32(rec + 8, pid); wr32(rec + 12, tid);
+/* Politique QNX (sched.h) -> politique du contrat (§2.5). */
+static unsigned int policy_map(unsigned int raw) {
+    if (raw == 2u) return 1u;   /* SCHED_RR */
+    if (raw == 4u) return 2u;   /* SCHED_SPORADIC */
+    return 0u;                  /* SCHED_FIFO, ou politique inconnue */
+}
+
+/* Écrit un record RKV1 (32 o). */
+static void write_rec(unsigned char *rec, unsigned long long ts, unsigned int pid,
+                      unsigned int tid, unsigned int cls, unsigned int sub,
+                      unsigned int a, unsigned int b, unsigned int c) {
+    wr64(rec, ts); wr32(rec + 8, pid); wr32(rec + 12, tid);
     rec[16] = (unsigned char)cls; rec[17] = (unsigned char)(cls >> 8);
     rec[18] = (unsigned char)sub; rec[19] = (unsigned char)(sub >> 8);
     wr32(rec + 20, a); wr32(rec + 24, b); wr32(rec + 28, c);
-    return 1;
+}
+
+/* Première priorité/politique observée pour chaque thread. */
+static void collect_priorities(const ev_t *evs, size_t n, tslot_t *tbl, size_t cap) {
+    size_t i;
+    unsigned int sub, reason;
+    for (i = 0; i < n; i++) {
+        const ev_t *e = &evs[i];
+        tslot_t *slot;
+        if (e->cls != C_PROC_THREAD || state_map(e->code, &sub, &reason) != 0) continue;
+        if (e->nw < 4) continue;
+        slot = tbl_get(tbl, cap, e->w[0], e->w[1], 1);
+        if (!slot->has_prio) {
+            slot->prio = e->w[2]; slot->policy = e->w[3]; slot->has_prio = 1;
+        }
+    }
+}
+
+/* Mappe un événement de thread/processus ; rend le nombre de records écrits. */
+static int map_thread(const ev_t *e, tslot_t *tbl, size_t cap, unsigned char *rec) {
+    unsigned int pid = e->w[0], tid = e->nw > 1 ? e->w[1] : 0;
+    unsigned int sub, reason;
+    tslot_t *slot;
+    if (e->code == TH_CREATE) {
+        slot = tbl_get(tbl, cap, pid, tid, 0);
+        write_rec(rec, e->ts, pid, tid, EV_THREAD_CREATE,
+                  (slot && slot->has_prio) ? policy_map(slot->policy) : 0u,
+                  (slot && slot->has_prio) ? slot->prio : 0u, 0u, 0u);
+        return 1;
+    }
+    if (e->code == TH_DESTROY) {
+        write_rec(rec, e->ts, pid, tid, EV_THREAD_DESTROY, 0u, 0u, 0u, 0u);
+        return 1;
+    }
+    if (state_map(e->code, &sub, &reason) == 0) {
+        write_rec(rec, e->ts, pid, tid, EV_THREAD_STATE, sub, reason, 0u, 0u);
+        if (e->nw >= 4) {
+            unsigned int prio = e->w[2];
+            slot = tbl_get(tbl, cap, pid, tid, 1);
+            if (slot->has_last && slot->last != prio) {
+                write_rec(rec + 32u, e->ts, pid, tid, EV_PRIO_CHANGE, 0u,
+                          prio, slot->last, 0u);
+                slot->last = prio; slot->has_last = 1;
+                return 2;
+            }
+            slot->last = prio; slot->has_last = 1;
+        }
+        return 1;
+    }
+    if (e->code == P_CREATE || e->code == P_CREATE_NAME) {
+        write_rec(rec, e->ts, e->nw > 1 ? e->w[1] : 0u, 0u, EV_PROCESS_CREATE,
+                  0u, e->w[0], 0u, 0u);
+        return 1;
+    }
+    if (e->code == P_DESTROY || e->code == P_DESTROY_NAME) {
+        write_rec(rec, e->ts, e->nw > 1 ? e->w[1] : 0u, 0u, EV_PROCESS_DESTROY,
+                  0u, 0u, 0u, 0u);
+        return 1;
+    }
+    return 0; /* noms : non mappés */
+}
+
+/* Mappe un événement de message passing ; rend le nombre de records écrits. */
+static int map_comm(const ev_t *e, unsigned char *rec) {
+    unsigned int w0 = e->w[0], w1 = e->nw > 1 ? e->w[1] : 0;
+    if (e->code == 0) {          /* SND : w0=rcvid, w1=pid du canal (destinataire) */
+        write_rec(rec, e->ts, w1, 0u, EV_MSG_SEND, 0u, w1, 0u, 0u);
+        return 1;
+    }
+    if (e->code == 2) {          /* REC : pid source non exposé par la trace */
+        write_rec(rec, e->ts, w1, 0u, EV_MSG_RECEIVE, 0u, 0u, 0u, 0u);
+        return 1;
+    }
+    if (e->code == 10) {         /* REPLY : w0=tid, w1=pid du répondant */
+        write_rec(rec, e->ts, w1, w0, EV_MSG_REPLY, 0u, 0u, 0u, 0u);
+        return 1;
+    }
+    if (e->code == 11) {         /* ERROR : w0=tid, w1=pid du répondant */
+        write_rec(rec, e->ts, w1, w0, EV_MSG_ERROR, 0u, 0u, 0u, 0u);
+        return 1;
+    }
+    return 0;
+}
+
+/* Mappe les interruptions et les timers ; rend le nombre de records écrits. */
+static int map_system(const ev_t *e, unsigned char *rec) {
+    if (e->cls == C_INT) {
+        write_rec(rec, e->ts, e->w[0], e->nw > 1 ? e->w[1] : 0u,
+                  EV_INTERRUPT, 0u, 0u, 0u, 0u);
+        return 1;
+    }
+    if (e->code == 0x12) {       /* _NTO_TRACE_SYS_TIMER */
+        write_rec(rec, e->ts, e->w[0], e->nw > 1 ? e->w[1] : 0u,
+                  EV_TIMER, 0u, 0u, 0u, 0u);
+        return 1;
+    }
+    return 0;
 }
 
 int kev_rkv1_convert(const unsigned char *kev, size_t len,
                      unsigned char **out, size_t *outlen) {
     long hend = find_sub(kev, len, "TRACE_HEADER_END::");
-    size_t start, nmap = 0, cap, i, body_off = 32;
+    size_t start, nmap = 0, cap, i, body_off = 32, tcap = 64;
     long sp, cps;
     evbuf_t evs = {0};
     unsigned char *buf, *body;
+    tslot_t *tbl;
     if (hend < 0) return -1;
     sp = kw_int(kev, (size_t)hend, "TRACE_SYSPAGE_LEN"); if (sp < 0) sp = 2464;
     cps = kw_int(kev, (size_t)hend, "TRACE_CYCLES_PER_SEC"); if (cps < 0) cps = 1000000000L;
@@ -238,12 +338,24 @@ int kev_rkv1_convert(const unsigned char *kev, size_t len,
     if (start > len) return -1;
     if (parse_logical(kev, len, start, &evs)) { free(evs.v); return -1; }
     qsort(evs.v, evs.n, sizeof(ev_t), cmp_ev);
+    while (tcap < evs.n * 2u + 64u) tcap *= 2u;
+    tbl = calloc(tcap, sizeof(tslot_t));
+    if (!tbl) { free(evs.v); return -1; }
+    collect_priorities(evs.v, evs.n, tbl, tcap);
     cap = evs.n ? evs.n * 32 : 32;
     buf = malloc(body_off + cap);
-    if (!buf) { free(evs.v); return -1; }
+    if (!buf) { free(tbl); free(evs.v); return -1; }
     body = buf + body_off;
-    for (i = 0; i < evs.n; i++)
-        if (map_event(&evs.v[i], body + nmap * 32)) nmap++;
+    for (i = 0; i < evs.n; i++) {
+        const ev_t *e = &evs.v[i];
+        unsigned char *rec = body + nmap * 32u;
+        int written = 0;
+        if (e->cls == C_PROC_THREAD) written = map_thread(e, tbl, tcap, rec);
+        else if (e->cls == C_COMM) written = map_comm(e, rec);
+        else if (e->cls == C_SYSTEM || e->cls == C_INT) written = map_system(e, rec);
+        nmap += (size_t)written;
+    }
+    free(tbl);
     free(evs.v);
     wr32(buf + 0, 0x31564B52u);            /* "RKV1" */
     wr32(buf + 4, 1);                       /* version */
