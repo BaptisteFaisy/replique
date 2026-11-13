@@ -1,0 +1,324 @@
+TRACEPRINTER version 1.02
+TRACEPARSER LIBRARY version 1.02
+ -- HEADER FILE INFORMATION -- 
+            TRACE_DATE:: Thu Nov 12 22:40:23 2026
+       TRACE_VER_MAJOR:: 2
+       TRACE_VER_MINOR:: 01
+   TRACE_LITTLE_ENDIAN:: TRUE
+        TRACE_ENCODING:: 16 byte events
+       TRACE_BOOT_DATE:: Thu Nov 12 22:40:20 2026
+  TRACE_CYCLES_PER_SEC:: 2294587226
+         TRACE_CPU_NUM:: 4
+         TRACE_SYSNAME:: QNX
+        TRACE_NODENAME:: localhost
+     TRACE_SYS_RELEASE:: 8.0.0
+     TRACE_SYS_VERSION:: 2026/06/05-16:26:03EDT
+         TRACE_MACHINE:: x86pc
+     TRACE_SYSPAGE_LEN:: 2464
+       TRACE_FILE_NAME:: /dev/shmem/trace.kev
+TRACE_TRACELOGGER_ARGS:: tracelogger -d1 -E -r -f /dev/shmem/trace.kev -S 16M -s 0
+ -- KERNEL EVENTS -- 
+t:0x5bdb4bc75 CPU:01 CONTROL         :TIME               msb:0x00000005 lsb(offset):0xbdb4bc75
+t:0x5bdb4bc75 CPU:01 CONTROL         :BUFFER             sequence = 1, num_events = 272
+
+t:0x5bdb4bc75 CPU:01 PROCESS         :PROCCREATE_NAME   
+                      ppid:0
+                       pid:1
+                      name:/proc/boot/procnto-smp-instr
+t:0x5bdd9a563 CPU:01 THREAD          :THCREATE           pid:1 tid:1
+t:0x5bddf5a57 CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:1
+                      name:idle_cpu_0
+t:0x5bde26587 CPU:01 THREAD          :THCREATE           pid:1 tid:2
+t:0x5bde28333 CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:2
+                      name:idle_cpu_1
+t:0x5bde98ddf CPU:01 THREAD          :THCREATE           pid:1 tid:3
+t:0x5bde9abbf CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:3
+                      name:idle_cpu_2
+t:0x5bde9c7cd CPU:01 THREAD          :THCREATE           pid:1 tid:4
+t:0x5bde9d92f CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:4
+                      name:idle_cpu_3
+t:0x5bde9ea2f CPU:01 THREAD          :THCREATE           pid:1 tid:5
+t:0x5bde9f981 CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:5
+                      name:ipi_cpu_0
+t:0x5bdecd7c1 CPU:01 THREAD          :THCREATE           pid:1 tid:6
+t:0x5bdececaf CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:6
+                      name:ipi_cpu_1
+t:0x5bded0a73 CPU:01 THREAD          :THCREATE           pid:1 tid:7
+t:0x5bded195d CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:7
+                      name:ipi_cpu_2
+t:0x5bded2ffb CPU:01 THREAD          :THCREATE           pid:1 tid:8
+t:0x5bded3f0d CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:8
+                      name:ipi_cpu_3
+t:0x5bded53b1 CPU:01 THREAD          :THCREATE           pid:1 tid:9
+t:0x5bded631f CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:9
+                      name:clock_cpu_0
+t:0x5bded776d CPU:01 THREAD          :THCREATE           pid:1 tid:10
+t:0x5bded86c5 CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:10
+                      name:clock_cpu_1
+t:0x5bded9c37 CPU:01 THREAD          :THCREATE           pid:1 tid:11
+t:0x5bdedabbd CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:11
+                      name:clock_cpu_2
+t:0x5bdedc0bd CPU:01 THREAD          :THCREATE           pid:1 tid:12
+t:0x5bdedcf91 CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:12
+                      name:clock_cpu_3
+t:0x5bdee10d5 CPU:01 THREAD          :THCREATE           pid:1 tid:13
+t:0x5bdee2271 CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:13
+                      name:sched_sporadic
+t:0x5bdef1e13 CPU:01 THREAD          :THCREATE           pid:1 tid:14
+t:0x5bdef5155 CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:14
+                      name:proc_pool_manager
+t:0x5bdef86c3 CPU:01 THREAD          :THCREATE           pid:1 tid:15
+t:0x5bdef9677 CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:15
+                      name:proc_pool_thread
+t:0x5bdefc52f CPU:01 THREAD          :THCREATE           pid:1 tid:16
+t:0x5bdefd407 CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:16
+                      name:proc_pool_thread
+t:0x5bdefeb81 CPU:01 THREAD          :THCREATE           pid:1 tid:17
+t:0x5bdeff985 CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:17
+                      name:proc_pool_thread
+t:0x5bdf02671 CPU:01 THREAD          :THCREATE           pid:1 tid:18
+t:0x5bdf0363b CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:18
+                      name:proc_pool_thread
+t:0x5bdf06371 CPU:01 THREAD          :THCREATE           pid:1 tid:19
+t:0x5bdf07331 CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:19
+                      name:proc_pool_thread
+t:0x5bdf0a1b5 CPU:01 THREAD          :THCREATE           pid:1 tid:20
+t:0x5bdf0b093 CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:20
+                      name:proc_pool_thread
+t:0x5bdf0e02b CPU:01 THREAD          :THCREATE           pid:1 tid:21
+t:0x5bdf0efc7 CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:21
+                      name:proc_pool_thread
+t:0x5bdf11beb CPU:01 THREAD          :THCREATE           pid:1 tid:22
+t:0x5bdf12b4d CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:22
+                      name:proc_pool_thread
+t:0x5bdf15a33 CPU:01 THREAD          :THCREATE           pid:1 tid:23
+t:0x5bdf1690b CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:23
+                      name:proc_pool_thread
+t:0x5bdf196e9 CPU:01 THREAD          :THCREATE           pid:1 tid:24
+t:0x5bdf1a5ab CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:24
+                      name:proc_pool_thread
+t:0x5bdf1d297 CPU:01 THREAD          :THCREATE           pid:1 tid:25
+t:0x5bdf1e187 CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:25
+                      name:proc_pool_thread
+t:0x5bdf20d6b CPU:01 THREAD          :THCREATE           pid:1 tid:26
+t:0x5bdf21c27 CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:26
+                      name:proc_pool_thread
+t:0x5bdf2484f CPU:01 THREAD          :THCREATE           pid:1 tid:27
+t:0x5bdf257f1 CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:27
+                      name:proc_pool_thread
+t:0x5bdf2722d CPU:01 THREAD          :THCREATE           pid:1 tid:28
+t:0x5bdf2807b CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:28
+                      name:proc_pool_thread
+t:0x5bdf29685 CPU:01 THREAD          :THCREATE           pid:1 tid:29
+t:0x5bdf2a465 CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:29
+                      name:proc_pool_thread
+t:0x5bdf2b915 CPU:01 THREAD          :THCREATE           pid:1 tid:30
+t:0x5bdf2c6e5 CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:1
+                       tid:30
+                      name:proc_pool_thread
+t:0x5be07760b CPU:01 SYSTEM          :IST_ATTACH        pid:1 tid:9 intr_id:0x80010000(2147549184) intr_cpu:00 flags:0x000000a8 ist_prio:254
+t:0x5be0915f3 CPU:01 SYSTEM          :IST_ATTACH        pid:1 tid:10 intr_id:0x80010000(2147549184) intr_cpu:01 flags:0x000000a8 ist_prio:254
+t:0x5be092e13 CPU:01 SYSTEM          :IST_ATTACH        pid:1 tid:12 intr_id:0x80010000(2147549184) intr_cpu:03 flags:0x000000a8 ist_prio:254
+t:0x5be093ca7 CPU:01 SYSTEM          :IST_ATTACH        pid:1 tid:11 intr_id:0x80010000(2147549184) intr_cpu:02 flags:0x000000a8 ist_prio:254
+t:0x5be1351ff CPU:01 PROCESS         :PROCCREATE_NAME   
+                      ppid:1
+                       pid:2
+                      name:proc/boot/devc-con
+t:0x5be13aedf CPU:01 THREAD          :THCREATE           pid:2 tid:1
+t:0x5be13fe17 CPU:01 THREAD          :THCREATE           pid:2 tid:2
+t:0x5be142081 CPU:01 SYSTEM          :IST_ATTACH        pid:2 tid:2 intr_id:0x1(1) flags:0x10000008 EVENT ist_prio:254
+t:0x5be17243d CPU:01 PROCESS         :PROCCREATE_NAME   
+                      ppid:1
+                       pid:3
+                      name:proc/boot/devc-ser8250
+t:0x5be174a0f CPU:01 THREAD          :THCREATE           pid:3 tid:1
+t:0x5be1769d3 CPU:01 THREAD          :THCREATE           pid:3 tid:2
+t:0x5be179b87 CPU:01 THREAD          :THCREATE           pid:3 tid:3
+t:0x5be17b225 CPU:01 SYSTEM          :IST_ATTACH        pid:3 tid:2 intr_id:0x4(4) flags:0x10000008 EVENT ist_prio:254
+t:0x5be17c315 CPU:01 SYSTEM          :IST_ATTACH        pid:3 tid:3 intr_id:0x3(3) flags:0x10000008 EVENT ist_prio:254
+t:0x5be17f8eb CPU:01 PROCESS         :PROCCREATE_NAME   
+                      ppid:8199
+                       pid:12292
+                      name:bin/sh
+t:0x5be1c3b33 CPU:01 THREAD          :THCREATE           pid:12292 tid:1
+t:0x5be1c7fa3 CPU:01 PROCESS         :PROCCREATE_NAME   
+                      ppid:4
+                       pid:5
+                      name:proc/boot/ksh
+t:0x5be1cb83d CPU:01 THREAD          :THCREATE           pid:5 tid:1
+t:0x5be1cdec7 CPU:01 PROCESS         :PROCCREATE_NAME   
+                      ppid:4100
+                       pid:4102
+                      name:proc/boot/ksh
+t:0x5be1cf66f CPU:01 THREAD          :THCREATE           pid:4102 tid:1
+t:0x5be1d173f CPU:01 PROCESS         :PROCCREATE_NAME   
+                      ppid:8196
+                       pid:8199
+                      name:proc/boot/ksh
+t:0x5be1d46b5 CPU:01 THREAD          :THCREATE           pid:8199 tid:1
+t:0x5be1d6ddb CPU:01 PROCESS         :PROCCREATE_NAME   
+                      ppid:12292
+                       pid:16392
+                      name:proc/boot/slogger2
+t:0x5be1d9b9b CPU:01 THREAD          :THCREATE           pid:16392 tid:1
+t:0x5be1db393 CPU:01 THREAD          :THCREATE           pid:16392 tid:2
+t:0x5be1dc20f CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:16392
+                       tid:2
+                      name:random
+t:0x5be1de709 CPU:01 PROCESS         :PROCCREATE_NAME   
+                      ppid:12292
+                       pid:28681
+                      name:proc/boot/devb-ram
+t:0x5be1e156f CPU:01 THREAD          :THCREATE           pid:28681 tid:1
+t:0x5be1e2659 CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:28681
+                       tid:1
+                      name:xpt_signal_handler
+t:0x5be1e5481 CPU:01 THREAD          :THCREATE           pid:28681 tid:2
+t:0x5be1e8093 CPU:01 THREAD          :THCREATE           pid:28681 tid:3
+t:0x5be1e8f33 CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:28681
+                       tid:3
+                      name:async_io
+t:0x5be1ebef9 CPU:01 THREAD          :THCREATE           pid:28681 tid:4
+t:0x5be1ecfc5 CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:28681
+                       tid:4
+                      name:fsnotify_flusher
+t:0x5be1efccf CPU:01 THREAD          :THCREATE           pid:28681 tid:5
+t:0x5be1f0bad CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:28681
+                       tid:5
+                      name:fsnotify_waiter
+t:0x5be1f377f CPU:01 THREAD          :THCREATE           pid:28681 tid:6
+t:0x5be1f45bd CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:28681
+                       tid:6
+                      name:fsys_resmgr
+t:0x5be1f7263 CPU:01 THREAD          :THCREATE           pid:28681 tid:7
+t:0x5be1f80c9 CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:28681
+                       tid:7
+                      name:fsys_resmgr
+t:0x5be1faee1 CPU:01 THREAD          :THCREATE           pid:28681 tid:8
+t:0x5be1fbce5 CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:28681
+                       tid:8
+                      name:fsys_resmgr
+t:0x5be1fea7d CPU:01 THREAD          :THCREATE           pid:28681 tid:9
+t:0x5be1ff84d CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:28681
+                       tid:9
+                      name:fsys_resmgr
+t:0x5be202379 CPU:01 THREAD          :THCREATE           pid:28681 tid:10
+t:0x5be203165 CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:28681
+                       tid:10
+                      name:fsys_resmgr
+t:0x5be20901d CPU:01 THREAD          :THCREATE           pid:28681 tid:11
+t:0x5be209f5d CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:28681
+                       tid:11
+                      name:fsys_resmgr
+t:0x5be20cb97 CPU:01 THREAD          :THCREATE           pid:28681 tid:12
+t:0x5be20da0f CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:28681
+                       tid:12
+                      name:fsys_resmgr
+t:0x5be2105b3 CPU:01 THREAD          :THCREATE           pid:28681 tid:13
+t:0x5be2113c3 CPU:01 PROCESS         :PROCTHREAD_NAME   
+                       pid:28681
+                       tid:13
+                      name:fsys_resmgr
+t:0x5be213a4d CPU:01 PROCESS         :PROCCREATE_NAME   
+                      ppid:12292
+                       pid:40970
+                      name:proc/boot/tracelogger
+t:0x5be214ccf CPU:01 THREAD          :THCREATE           pid:40970 tid:1
+t:0x5be215e3d CPU:01 THREAD          :THCREATE           pid:40970 tid:2
+t:0x5be2187ed CPU:01 THREAD          :THCREATE           pid:40970 tid:3
+t:0x5be21b00b CPU:01 THREAD          :THCREATE           pid:40970 tid:4
+t:0x5be21d8bd CPU:01 THREAD          :THCREATE           pid:40970 tid:5
+t:0x5be220097 CPU:01 THREAD          :THCREATE           pid:40970 tid:6
+t:0x5be221f7f CPU:01 PROCESS         :PROCCREATE_NAME   
+                      ppid:12292
+                       pid:65548
+                      name:proc/boot/declic
+t:0x5be223931 CPU:01 THREAD          :THCREATE           pid:65548 tid:1
+t:0x5be543caf CPU:01 CONTROL         :BUFFER_END         cookie1 = e6e6e6e6, cookie2 = e6e6e6e6
+
+t:0x5be56fd05 CPU:00 CONTROL         :TIME               msb:0x00000005 lsb(offset):0xbe56fd05
+t:0x5be56fd05 CPU:00 CONTROL         :BUFFER             sequence = 1, num_events = 3
+
+t:0x5be56fd05 CPU:00 CONTROL         :BUFFER_END         cookie1 = e6e6e6e6, cookie2 = e6e6e6e6
+
+t:0x5be8116bd CPU:03 CONTROL         :TIME               msb:0x00000005 lsb(offset):0xbe8116bd
+t:0x5be8116bd CPU:03 CONTROL         :BUFFER             sequence = 1, num_events = 3
+
+t:0x5be8116bd CPU:03 CONTROL         :BUFFER_END         cookie1 = e6e6e6e6, cookie2 = e6e6e6e6
+
+t:0x5be832812 CPU:02 CONTROL         :TIME               msb:0x00000005 lsb(offset):0xbe832812
+t:0x5be832812 CPU:02 CONTROL         :BUFFER             sequence = 1, num_events = 3
+
+t:0x5be832812 CPU:02 CONTROL         :BUFFER_END         cookie1 = e6e6e6e6, cookie2 = e6e6e6e6
+
