@@ -60,17 +60,53 @@ Python divergent). Exemple :
 
 ### Ce qui a été vérifié sur une vraie cible QNX 8.0 (serveur `r630`, 12/11/2026)
 
-Le SDP 8.0 est installé sur `r630` (`~/qnx800`). Ce qui y a été établi, source
-QNX à l'appui :
+Le SDP 8.0 est installé sur `r630` (`~/qnx800`) : un invité QNX 8.0 **réel** y
+tourne, sous QEMU, et la démonstration s'y exécute de bout en bout.
 
 | Fait | Conséquence pour le projet |
 |---|---|
 | `qcc -V gcc_ntox86_64` compile **Déclic** et les trois générateurs de bogues en `-Werror` | la partie cible n'est pas de la fiction : elle compile contre le vrai SDK |
-| **le HAM n'existe plus** dans le SDP 8.0 (ni en-tête `<ham/ham.h>`, ni binaire) | le déclencheur de Déclic est la scrutation de `/proc/<pid>`, plus le signal récupéré par `pidin dead` |
-| le service de noms a disparu aussi (pas de `<name.h>`) | pas de crochet « message de terminaison » : d'où `target/declic/declic_watch.c` |
-| `tracelogger`, `traceprinter`, `dumper`, `pidin`, `slog2info` sont livrés | les quatre sources de l'archive RDA1 existent sur la cible |
-| la chaîne `mkifs` → `mkxfs -t qnx6fsimg` → `diskimage` produit un disque amorçable, et QEMU l'amorce jusqu'à « QNX v1.2d Boot Loader: qnx_sdp.ifs » | l'image de `image/` est constructible ; il reste la main tendue du chargeur à l'IFS (voir `image/README.md`) |
-| sans `io-blk.so` et `fs-qnx6.so` dans l'IFS, procnto ne monte rien et le boot s'arrête | ces deux modules sont dans `image/buildfile` |
+| l'invité démarre avec `--cpu max` + RNG virtio + `-kernel ifs.bin` | l'image de `image/` est un invité QNX 8.0 qui démarre et rend la main |
+| la démo s'exécute : `bug-deadlock` s'interbloque, `slay` le termine, **Déclic assemble l'archive sur la cible** | `archive 13721 octets sha256=b2111615…`, `sections trace=7484 pidin=5278 slog2=355 core=58 manifest=114` |
+| la trace est **figée au moment du crash** (essai E2) | `tracelogger -d1 -E -r -f <fichier> -S 16M -s 0`, arrêté par SIGINT à la terminaison |
+| **l'oracle officiel lit cette trace** | `traceprinter` (hôte Linux) décode les 324 lignes d'événements noyau, en-tête « QNX 8.0.0 / 2026-06-05 » → `docs/preuves/` |
+
+#### La preuve de l'oracle (essai E1)
+
+`docs/preuves/` contient ce qui a été produit **sur la cible** :
+
+| Fichier | Ce que c'est |
+|---|---|
+| `trace-qnx800.kev` | une **vraie trace noyau QNX 8.0.0** capturée par `tracelogger` dans l'invité et figée par Déclic à la terminaison (7 484 octets) |
+| `traceprinter-qnx800.txt` | sa version décodée par **l'oracle officiel** : en-tête « QNX 8.0.0 / 2026-06-05 », 324 lignes d'événements noyau |
+| `archive-declic.rda1` | l'archive RDA1 assemblée **sur la cible** (13 721 octets, sha256 `b2111615…`) |
+
+La conversion `.kev` → `RKV1` (l'oracle devient l'entrée du cœur portable)
+reste le **lot hôte** : c'est ce qui rendrait le différentiel contre l'oracle
+automatisable en CI.
+
+#### Les trois faits QNX 8.0 qui ont coûté le plus cher
+
+- **`pipe(2)` n'est pas implémenté** (ENOSYS) : `popen(3)` échoue donc toujours
+  sur la cible, et les sections `pidin`/`slog2`/`core` restaient vides. La
+  collecte passe par `fork` + redirection vers un fichier de `/dev/shmem`
+  (`target/declic/declic_exec.c`).
+- **`pidin dead` n'existe plus** (« invalid or ambiguous shorthand ») : le signal
+  de fin est fourni par l'appelant (`--signal`/`--status`) au lieu d'être
+  inventé.
+- **le HAM et le service de noms ont disparu** : le déclencheur de terminaison
+  est la scrutation de `/proc`, à 50 ms près.
+
+#### Ce qui reste ouvert (assumé, pas masqué)
+
+- la trace est capturée en mode « fast » : le processus qui bloque n'y figure pas
+  (`-w` / « wide » le capture, mais cela a régressé l'affichage de boot → non
+  appliqué, documenté) ;
+- le montage d'un disque `qnx6` dans l'invité reste bloqué (`fs-qnx6.so`
+  attend une partition de type `hd0t179`) — sans effet bloquant : l'archive et
+  la trace s'écrivent dans `/dev/shmem`, qui est inscriptible ;
+- l'archive contient la trace `.kev` **brute** (la conversion en `RKV1` est le
+  lot hôte).
 
 ## 4. Comment reproduire
 
