@@ -38,6 +38,13 @@ qemu-system-x86_64 -cpu qemu64,+ssse3,+sse4.1,+sse4.2,+popcnt \
 Le disque doit être en **IDE** : c'est `devb-eide` qui est dans l'image (le
 virtio n'est pas piloté par le noyau de l'invité).
 
+> **La ligne qui marche** est celle de `qnx-emu/guest-qemu.sh` (et
+> `image/guest-qemu.sh`) : `--cpu max` (pas `qemu64`), RNG virtio, `-kernel
+> ifs.bin`. Ces deux lanceurs ouvrent en plus la **console série sur un socket**
+> (`-chardev socket` + `-serial chardev`) : on **pilote** alors l'invité depuis
+> l'hôte avec `qnx-emu/ser-console.py --socket ~/replique-demo/ser.sock 'pidin'`,
+> sans reconstruire l'image ni toucher l'écran VGA.
+
 ## Scénario de démonstration (S7)
 
 Dans l'invité (shell sur `/dev/ser1`) :
@@ -52,6 +59,12 @@ Déclic observe la terminaison (`/proc/<pid>`), fige la trace (SIGINT à
 `tracelogger`), collecte `pidin` + `slog2info` + le core dump, et écrit une
 archive `RDA1` horodatée avec son empreinte SHA-256. L'archive se ramène sur
 l'hôte et s'analyse avec le cœur portable (voir `docs/PREUVE.md`).
+
+`image/exp-wide.sh` est la variante **« wide »** (essai E2 élargi) : lancée
+après le boot dans un invité séparé (piloté par `ser-console.py`), elle capture
+`tracelogger -w`, qui **contient** le processus fautif et ses threads bloqués —
+ce que le mode « fast » de la démo ne capturait pas (voir
+`docs/preuves/trace-qnx800-wide.kev`).
 
 ## État vérifié au 12/11/2026 (serveur r630)
 

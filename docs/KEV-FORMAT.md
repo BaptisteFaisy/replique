@@ -97,3 +97,4 @@ Le décodage est validé **par différentiel contre `traceprinter`** (exigence S
 | Figeage propre avec historique avant-crash | **NON VÉRIFIÉ** (E2 non tranché) |
 | Terminaison observable en temps réel | **NON VÉRIFIÉ** (E3 non tranché) |
 | Décodage identique à `traceprinter` sur trace réelle | **NON VÉRIFIÉ** — exige SDP + adaptateur (E1) |
+| Capture du **processus fautif** dans la trace | **VÉRIFIÉ** : le mode « wide » (`tracelogger -w`, après le boot, dans un invité piloté par la console série) le contient (`docs/preuves/trace-qnx800-wide.kev`) ; le décode oracle reste la voie d'entrée (le format binaire n'est pas décodé par nos soins) |

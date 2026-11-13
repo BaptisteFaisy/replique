@@ -80,6 +80,8 @@ tourne, sous QEMU, et la démonstration s'y exécute de bout en bout.
 | `trace-qnx800.kev` | une **vraie trace noyau QNX 8.0.0** capturée par `tracelogger` dans l'invité et figée par Déclic à la terminaison (7 484 octets) |
 | `traceprinter-qnx800.txt` | sa version décodée par **l'oracle officiel** : en-tête « QNX 8.0.0 / 2026-06-05 », 324 lignes d'événements noyau |
 | `archive-declic.rda1` | l'archive RDA1 assemblée **sur la cible** (13 721 octets, sha256 `b2111615…`) |
+| `trace-qnx800-wide.kev` | une trace **« wide »** (`tracelogger -w`, lancée après le boot) : elle **contient** le processus fautif (823 365 octets) |
+| `traceprinter-wide-qnx800.excerpt.txt` | l'extrait décodé par l'oracle : `bug-deadlock` et ses deux threads (priorités 60 et 50) créés, bloqués puis détruits — ce que la trace « fast » **ne** capturait pas |
 
 La conversion `.kev` → `RKV1` (l'oracle devient l'entrée du cœur portable)
 reste le **lot hôte** : c'est ce qui rendrait le différentiel contre l'oracle
@@ -99,9 +101,14 @@ automatisable en CI.
 
 #### Ce qui reste ouvert (assumé, pas masqué)
 
-- la trace est capturée en mode « fast » : le processus qui bloque n'y figure pas
-  (`-w` / « wide » le capture, mais cela a régressé l'affichage de boot → non
-  appliqué, documenté) ;
+- la trace **de démonstration** est capturée en mode « fast » (le processus qui
+  bloque n'y figure pas) : c'est celle de l'invité visible sur le site. En
+  parallèle, une trace **« wide »** (`-w`), lancée **après le boot** dans un
+  invité d'expérimentation piloté par la console série (aucune régression VGA),
+  capture bien le fautif — `docs/preuves/trace-qnx800-wide.kev` : le processus
+  `bug-deadlock`, ses deux threads (priorités 60 et 50) créés, bloqués puis
+  détruits, et ses opérations mutex. Le mode « wide » reste hors du chemin de
+  démonstration pour ne pas perturber l'affichage de l'invité public ;
 - le montage d'un disque `qnx6` dans l'invité reste bloqué (`fs-qnx6.so`
   attend une partition de type `hd0t179`) — sans effet bloquant : l'archive et
   la trace s'écrivent dans `/dev/shmem`, qui est inscriptible ;

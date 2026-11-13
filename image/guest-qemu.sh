@@ -11,5 +11,6 @@ exec "$QPREFIX/usr/bin/qemu-system-x86_64" \
   -object rng-random,filename=/dev/urandom,id=rng0 \
   -device virtio-rng-pci,rng=rng0 \
   -display none -vga std \
-  -serial file:"$LOG/serial-kernel.log" \
+  -chardev socket,id=ser0,path="$LOG/ser.sock",server=on,wait=off,logfile="$LOG/serial-kernel.log" \
+  -serial chardev:ser0 \
   -monitor unix:"$LOG/mon-kernel.sock",server,nowait
