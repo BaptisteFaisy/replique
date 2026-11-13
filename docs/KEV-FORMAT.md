@@ -18,9 +18,23 @@ Ce document sépare strictement trois choses :
 | System Profiler (Momentics) | visualise la trace (frise, threads) | Documenté ; mesure et visualise, n'explique pas la causalité, ne rejoue pas (cahier §2.1) |
 | Événements disponibles | états de threads, `MsgSend`/`MsgReceive`/`MsgReply`, interruptions, timers, décisions d'ordonnancement, création/destruction process/thread | Documentés (cahier §2.1). Leur **encodage binaire** dans le `.kev` : NON VÉRIFIÉ (E1). Leur **observabilité temps réel** pour déclencher Déclic : NON VÉRIFIÉ (E3) |
 
-### 1.2 Conséquence honnête
+### 1.2 Conséquence — essai E1 **tranché**
 
-Le cahier des charges §13 est explicite : « Format binaire `.kev` accessible au parseur : **Non vérifié** (E1) — `traceprinter` comme oracle de repli ». Écrire aujourd'hui un parseur du `.kev` brut reviendrait à coder contre un format non vérifié, non testable sans SDP. **Le cœur portable ne lit donc pas le `.kev` brut** : il lit le conteneur RKV1 ci-dessous, et un adaptateur `kev → rkv1` s'insérera dans Déclic quand E1 sera tranché (§2.4).
+Le format binaire `.kev` QNX 8.0 est **documenté** dans `sys/trace.h` du SDP
+(`traceevent_t`, `traceheader`, masques de bits `_NTO_TRACE_GETCPU`/`CLASS`/`EVENT`,
+combinaison `CB`/`CC`/`CE`) et **décodé directement** par
+`host/replique/kev_reader.py` ; `host/replique/kev2rkv1.py` le convertit en
+`RKV1`. Le décodage est **validé par différentiel** contre l'oracle
+`traceprinter` sur la trace réelle de `docs/preuves/trace-qnx800.kev` : mêmes
+comptes par type d'événement (voir §3). Le cœur portable lit toujours le
+conteneur `RKV1` ; l'adaptateur amont est désormais **écrit et prouvé**.
+
+Correspondance réalisée (sous-ensemble assumé de `CONTRACT.md` §2) : cycle de
+vie process/thread, états de thread (avec priorité/politique issues de la
+seconde moitié de la combinaison), message passing (`SND`/`REC`/`REPLY`/`ERROR`),
+interruptions, timers. Les champs **non exposés** par la trace (id de mutex,
+valeur de sémaphore, numéro de séquence) restent à 0 — la trace dit *ce qui se
+passe*, pas *pourquoi* (c'est le postulat du projet, cf. `docs/GAP.md`).
 
 ## 2. Le conteneur RKV1 (CONTRACT.md §1 — gelé)
 
@@ -73,7 +87,7 @@ tracelogger (tampon circulaire) → [figeage au crash — E2/E3]
     → cœur portable (parse RKV1 → analyse → rejeu), inchangé
 ```
 
-Propriétés de ce découpage : le cœur, ses tests, le contrat RKV1 et les attentes gelées des scénarios **ne changent pas** quand l'adaptateur arrive ; seul un convertisseur amont s'ajoute, validé par l'oracle `traceprinter` (§3). Si E1 concluait que le `.kev` n'est pas décodable directement, l'adaptateur pourra passer par la sortie texte de `traceprinter` plutôt que par le binaire — la cible RKV1 reste la même. **Statut : adaptateur non écrit, E1 non tranché.**
+Propriétés de ce découpage : le cœur, ses tests, le contrat RKV1 et les attentes gelées des scénarios **ne changent pas** quand l'adaptateur arrive ; seul un convertisseur amont s'ajoute, validé par l'oracle `traceprinter` (§3). **Statut : essai E1 tranché — adaptateur écrit** (`host/replique/kev_reader.py` + `kev2rkv1.py`), sur le binaire direct (pas le texte de l'oracle). À l'avenir, la même logique pourra être portée côté cible (Déclic) pour convertir dans l'archive.
 
 ## 3. Méthode d'oracle
 
@@ -82,7 +96,7 @@ Le décodage est validé **par différentiel contre `traceprinter`** (exigence S
 1. Sur une machine avec SDP : capturer une trace QNX réelle (`tracelogger`), la décoder avec `traceprinter` → texte de référence ;
 2. convertir la même trace en `.rkv1` (adaptateur §2.4) ;
 3. déposer le texte oracle à côté de la fixture : `fixtures/<nom>.tp.txt` ;
-4. `make oracle` (`tests/differential_traceprinter.sh`) compare le décodage RKV1 au texte oracle, quand le fichier `.tp.txt` est présent.
+4. `make oracle` (`tests/differential_kev_oracle.py` + `tests/differential_traceprinter.sh`) compare le décodage au texte oracle. Le script Python décode le `.kev` **binaire** et confronte, par type d'événement, ses comptes à ceux de `traceprinter` (régénéré si le SDP est présent, sinon via le `.tp.txt` voisin).
 
 **Sans SDP** (cas de la machine de développement aujourd'hui) : le différentiel tourne sur les fixtures `.rkv1` pré-enregistrées et sur le différentiel C↔Python (`tests/differential_c_python.sh`) — la chaîne de preuve n'est jamais bloquée par la licence, mais la comparaison au noyau réel reste **conditionnée à E1/E2** et le dit.
 
@@ -93,8 +107,8 @@ Le décodage est validé **par différentiel contre `traceprinter`** (exigence S
 | Conteneur RKV1 : en-tête, enregistrements, erreurs | **GELÉ et vérifiable** (CONTRACT.md §1, CRC-32, fixtures dégradées SPEC §5) |
 | Sorties canoniques `ev|`/`vd|`/`dec|` | **GELÉ** (CONTRACT.md §4), formateurs implémentés (`core/src/report.c`, `host/replique/report.py`) |
 | Existence de `tracelogger`/`traceprinter`/`.kev`, tampon circulaire | **Documenté publiquement** ; comportement au crash à revérifier page à page (cahier §13) |
-| Format binaire exact du `.kev` QNX 8.0 | **NON VÉRIFIÉ** (E1 non tranché) |
+| Format binaire exact du `.kev` QNX 8.0 | **VÉRIFIÉ** — documenté par `sys/trace.h`, décodé par `host/replique/kev_reader.py` (E1 tranché) |
 | Figeage propre avec historique avant-crash | **NON VÉRIFIÉ** (E2 non tranché) |
 | Terminaison observable en temps réel | **NON VÉRIFIÉ** (E3 non tranché) |
-| Décodage identique à `traceprinter` sur trace réelle | **NON VÉRIFIÉ** — exige SDP + adaptateur (E1) |
-| Capture du **processus fautif** dans la trace | **VÉRIFIÉ** : le mode « wide » (`tracelogger -w`, après le boot, dans un invité piloté par la console série) le contient (`docs/preuves/trace-qnx800-wide.kev`) ; le décode oracle reste la voie d'entrée (le format binaire n'est pas décodé par nos soins) |
+| Décodage identique à `traceprinter` sur trace réelle | **VÉRIFIÉ** — comptes par type identiques sur `docs/preuves/trace-qnx800.kev` (`tests/differential_kev_oracle.py`, cible `make oracle`) |
+| Capture du **processus fautif** dans la trace | **VÉRIFIÉ** : le mode « wide » (`tracelogger -w`, après le boot, dans un invité piloté par la console série) le contient (`docs/preuves/trace-qnx800-wide.kev`), et le décodeur binaire le lit (`make oracle` sur la trace wide) |

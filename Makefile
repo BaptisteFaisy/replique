@@ -89,6 +89,7 @@ determinism: build fixtures
 
 oracle: build fixtures
 	tests/differential_traceprinter.sh
+	$(PYTHON) tests/differential_kev_oracle.py
 
 guard:
 	$(PYTHON) .github/checks/size_guard.py

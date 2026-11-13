@@ -50,7 +50,7 @@ Python divergent). Exemple :
 
 | Affirmation | Statut | Condition de levée |
 |---|---|---|
-| Le format binaire `.kev` de QNX 8.0 est documenté | **Non vérifié** (essai E1) | lecture du SDP 8.0 ; en attendant, le cœur consomme le conteneur `RKV1` documenté dans `CONTRACT.md` |
+| Le format binaire `.kev` de QNX 8.0 est documenté | **Vérifié** (essai E1 tranché) | documenté par `sys/trace.h` ; `host/replique/kev_reader.py` le décode directement, `kev2rkv1.py` produit le `RKV1` ; différentiel identique à `traceprinter` (`make oracle`) |
 | `tracelogger` se fige proprement, tampon circulaire compris | **Non vérifié** (E2) | SDP + cible ; `target/declic/declic_qnx.c` est écrit mais **jamais compilé** ici (qcc absent) |
 | La terminaison d'un processus est observable en temps réel | **Non vérifié** (E3) | idem ; deux déclencheurs (HAM, crochet `dumper`) sont fournis, à valider sur cible |
 | Le core dump `dumper` contient les états de threads | **Non vérifié** (E5) | SDP ; la corrélation `CORRELATION_OK` n'est donc pas encore émise |
@@ -83,9 +83,11 @@ tourne, sous QEMU, et la démonstration s'y exécute de bout en bout.
 | `trace-qnx800-wide.kev` | une trace **« wide »** (`tracelogger -w`, lancée après le boot) : elle **contient** le processus fautif (823 365 octets) |
 | `traceprinter-wide-qnx800.excerpt.txt` | l'extrait décodé par l'oracle : `bug-deadlock` et ses deux threads (priorités 60 et 50) créés, bloqués puis détruits — ce que la trace « fast » **ne** capturait pas |
 
-La conversion `.kev` → `RKV1` (l'oracle devient l'entrée du cœur portable)
-reste le **lot hôte** : c'est ce qui rendrait le différentiel contre l'oracle
-automatisable en CI.
+La conversion `.kev` → `RKV1` (l'oracle devient l'entrée du cœur portable) est
+**implémentée** : `host/replique/kev_reader.py` décode le **binaire** (format de
+`sys/trace.h`), `kev2rkv1.py` produit le conteneur, et `tests/differential_kev_oracle.py`
+compare ses comptes par type à `traceprinter` — **identiques** sur la trace de
+référence (et sur la trace « wide »). La cible CI `make oracle` l'automatise.
 
 #### Les trois faits QNX 8.0 qui ont coûté le plus cher
 
