@@ -34,7 +34,7 @@ echo "== 1/4 compilation des binaires du projet (qcc, QNX 8.0) =="
   qcc -V gcc_ntox86_64 -Wall -Wextra -Werror -o "$WORK/declic" \
       target/declic/declic_qnx.c target/declic/declic_watch.c \
       target/declic/declic_exec.c target/declic/declic_portable.c \
-      target/declic/sha256_portable.c -Itarget/declic
+      target/declic/sha256_portable.c target/declic/kev_rkv1.c -Itarget/declic
   for bug in deadlock prio_inversion race; do
       qcc -V gcc_ntox86_64 -Wall -Wextra -Werror \
           -o "$WORK/bug-$bug" "image/bugs/$bug.c"

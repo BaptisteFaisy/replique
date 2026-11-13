@@ -70,6 +70,7 @@ tourne, sous QEMU, et la démonstration s'y exécute de bout en bout.
 | la démo s'exécute : `bug-deadlock` s'interbloque, `slay` le termine, **Déclic assemble l'archive sur la cible** | `archive 13721 octets sha256=b2111615…`, `sections trace=7484 pidin=5278 slog2=355 core=58 manifest=114` |
 | la trace est **figée au moment du crash** (essai E2) | `tracelogger -d1 -E -r -f <fichier> -S 16M -s 0`, arrêté par SIGINT à la terminaison |
 | **l'oracle officiel lit cette trace** | `traceprinter` (hôte Linux) décode les 324 lignes d'événements noyau, en-tête « QNX 8.0.0 / 2026-06-05 » → `docs/preuves/` |
+| **l'archive porte une section `rkv1` convertie SUR LA CIBLE** | 6 sections, `rkv1` = 3 360 octets, **byte-identique** au Python (sha256 `72d8e33c…`) |
 
 #### La preuve de l'oracle (essai E1)
 
@@ -80,14 +81,24 @@ tourne, sous QEMU, et la démonstration s'y exécute de bout en bout.
 | `trace-qnx800.kev` | une **vraie trace noyau QNX 8.0.0** capturée par `tracelogger` dans l'invité et figée par Déclic à la terminaison (7 484 octets) |
 | `traceprinter-qnx800.txt` | sa version décodée par **l'oracle officiel** : en-tête « QNX 8.0.0 / 2026-06-05 », 324 lignes d'événements noyau |
 | `archive-declic.rda1` | l'archive RDA1 assemblée **sur la cible** (13 721 octets, sha256 `b2111615…`) |
+| `archive-declic-rkv1.rda1` | l'archive **à six sections** produite sur la cible après le portage du décodeur : `trace` (`.kev` brut), `pidin`, `slog2`, `core`, `manifest` **et `rkv1`** (3 360 octets, converti **dans l'invité**, identique au Python) |
 | `trace-qnx800-wide.kev` | une trace **« wide »** (`tracelogger -w`, lancée après le boot) : elle **contient** le processus fautif (823 365 octets) |
 | `traceprinter-wide-qnx800.excerpt.txt` | l'extrait décodé par l'oracle : `bug-deadlock` et ses deux threads (priorités 60 et 50) créés, bloqués puis détruits — ce que la trace « fast » **ne** capturait pas |
 
 La conversion `.kev` → `RKV1` (l'oracle devient l'entrée du cœur portable) est
-**implémentée** : `host/replique/kev_reader.py` décode le **binaire** (format de
-`sys/trace.h`), `kev2rkv1.py` produit le conteneur, et `tests/differential_kev_oracle.py`
-compare ses comptes par type à `traceprinter` — **identiques** sur la trace de
-référence (et sur la trace « wide »). La cible CI `make oracle` l'automatise.
+**implémentée deux fois, et vérifiée** :
+
+| Implémentation | Où | Preuve |
+|---|---|---|
+| Python | `host/replique/kev_reader.py` + `kev2rkv1.py` | comptes par type **identiques** à `traceprinter` sur la trace de référence et sur la trace « wide » (`tests/differential_kev_oracle.py`, cible `make oracle`) |
+| C11 pur | `target/declic/kev_rkv1.c` (compilé par `qcc` contre le vrai SDK) | **octets identiques** au Python sur les deux traces (`tests/differential_kev_c.sh`) |
+
+Et surtout : **c'est le C qui tourne sur la cible**. Déclic convertit la trace
+figée **dans l'invité QNX 8.0** et l'archive RDA1 contient désormais une
+sixième section `rkv1`, **byte-identique** à ce que produit le Python sur
+l'hôte à partir du même `.kev` (`docs/preuves/archive-declic-rkv1.rda1`, test
+`host/tests/test_rda1.py`). Le cœur portable lit donc la trace **directement
+issue de la cible**, sans étape hôte.
 
 #### Les trois faits QNX 8.0 qui ont coûté le plus cher
 
@@ -114,8 +125,10 @@ référence (et sur la trace « wide »). La cible CI `make oracle` l'automatise
 - le montage d'un disque `qnx6` dans l'invité reste bloqué (`fs-qnx6.so`
   attend une partition de type `hd0t179`) — sans effet bloquant : l'archive et
   la trace s'écrivent dans `/dev/shmem`, qui est inscriptible ;
-- l'archive contient la trace `.kev` **brute** (la conversion en `RKV1` est le
-  lot hôte).
+- l'archive contient la trace `.kev` **brute** *et* sa conversion `RKV1`
+  (section `rkv1`, produite sur la cible) ; seule la conversion `.kev → RKV1`
+  « Lossless » vers le modèle sémantique complet reste à faire (les ids de
+  mutex et les numéros de séquence ne sont pas exposés par la trace).
 
 ## 4. Comment reproduire
 
