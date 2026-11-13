@@ -21,6 +21,7 @@
 #include "declic_exec.h"
 #include "declic_watch.h"
 #include "sha256_portable.h"
+#include "kev_rkv1.h"
 
 #ifdef __QNX__
 
@@ -63,6 +64,8 @@ typedef struct declic_blobs {
   unsigned char slog2[DECLIC_MAX_ARTIFACT];
   unsigned char core[DECLIC_MAX_ARTIFACT];
   size_t trace_len, pidin_len, slog2_len, core_len;
+  unsigned char *rkv1;          /* trace convertie (allouée), ou NULL */
+  size_t rkv1_len;
 } declic_blobs;
 
 static declic_config g_cfg;
@@ -172,6 +175,13 @@ static void collect_all(uint32_t pid)
     snprintf(cmd, sizeof cmd, "cat %s 2>&1", g_cfg.trace_path);
     (void)declic_run_capture(cmd, g_blobs.trace, sizeof g_blobs.trace,
                              &g_blobs.trace_len);
+    /* E1 : convertir la trace .kev en RKV1, prêt pour l'analyse hôte. */
+    if (kev_rkv1_convert(g_blobs.trace, g_blobs.trace_len, &g_blobs.rkv1,
+                         &g_blobs.rkv1_len) == 0) {
+      fprintf(stderr, "declic: trace -> rkv1 (%zu octets)\n", g_blobs.rkv1_len);
+    } else {
+      fprintf(stderr, "declic: conversion rkv1 impossible\n");
+    }
   }
   (void)declic_run_capture(DECLIC_PIDIN_PROG " 2>&1", g_blobs.pidin,
                            sizeof g_blobs.pidin, &g_blobs.pidin_len);
@@ -201,6 +211,7 @@ static void fill_artifacts(declic_artifacts *art, const char *manifest,
 {
   memset(art, 0, sizeof *art);
   art->trace = g_blobs.trace;   art->trace_len = g_blobs.trace_len;
+  art->rkv1 = g_blobs.rkv1;     art->rkv1_len = g_blobs.rkv1_len;
   art->pidin = g_blobs.pidin;   art->pidin_len = g_blobs.pidin_len;
   art->slog2 = g_blobs.slog2;   art->slog2_len = g_blobs.slog2_len;
   art->core = g_blobs.core;     art->core_len = g_blobs.core_len;
@@ -254,8 +265,9 @@ static int write_archive(const declic_term_event *ev, uint64_t ts)
    * visible, indépendante de l'écriture disque. */
   printf("declic: pid=%u signal=%u status=%u\n", ev->pid, ev->signal, ev->status);
   printf("declic: archive %lu octets sha256=%s\n", (unsigned long)archive_len, hex);
-  printf("declic: sections trace=%lu pidin=%lu slog2=%lu core=%lu manifest=%lu\n",
-         (unsigned long)art.trace_len, (unsigned long)art.pidin_len,
+  printf("declic: sections trace=%lu rkv1=%lu pidin=%lu slog2=%lu core=%lu manifest=%lu\n",
+         (unsigned long)art.trace_len, (unsigned long)art.rkv1_len,
+         (unsigned long)art.pidin_len,
          (unsigned long)art.slog2_len, (unsigned long)art.core_len,
          (unsigned long)art.manifest_len);
   snprintf(path, sizeof path, "%s/declic-%u-%llu", g_cfg.out_dir, ev->pid,

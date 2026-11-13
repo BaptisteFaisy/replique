@@ -21,7 +21,7 @@ CWARN    := -Wall -Wextra -Werror
 CPED     := -Wpedantic
 CPPFLAGS := -I.
 
-PORTABLE_OBJ := declic_portable.o sha256_portable.o
+PORTABLE_OBJ := declic_portable.o sha256_portable.o kev_rkv1.o
 QNX_OBJ      := declic_qnx.o declic_watch.o declic_exec.o
 OBJ          := $(PORTABLE_OBJ) $(QNX_OBJ)
 BIN          := declic
@@ -40,6 +40,10 @@ declic_portable.o: declic_portable.c declic.h sha256_portable.h
 	$(CC) $(CSTD) $(COPT) $(CWARN) $(CPED) $(CPPFLAGS) -c $< -o $@
 
 sha256_portable.o: sha256_portable.c sha256_portable.h
+	$(CC) $(CSTD) $(COPT) $(CWARN) $(CPED) $(CPPFLAGS) -c $< -o $@
+
+# Décodeur .kev -> RKV1 (essai E1) : C11 pur, jumeau exact du Python.
+kev_rkv1.o: kev_rkv1.c kev_rkv1.h
 	$(CC) $(CSTD) $(COPT) $(CWARN) $(CPED) $(CPPFLAGS) -c $< -o $@
 
 # Colle QNX : uniquement sous __QNX__ (jamais compilée sur PC).

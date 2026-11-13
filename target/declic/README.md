@@ -10,6 +10,7 @@ Ce dossier contient deux couches :
 | Couche | Fichiers | Compilée où ? |
 |---|---|---|
 | **Logique portable** (C11 pur) | `declic.h`, `declic_portable.c`, `sha256_portable.{c,h}` | **PC et cible** (`make test`, `build/declic-test`) |
+| **Décodeur `.kev` → RKV1** (essai E1, C11 pur) | `kev_rkv1.{c,h}`, outil `kev_rkv1_tool.c` | **PC et cible** (`qcc`, et `tests/differential_kev_c.sh`) |
 | **Colle QNX** | `declic_qnx.c` | **cible seulement** (`#ifdef __QNX__`, `qcc`) |
 
 ---
@@ -128,11 +129,19 @@ Les **cinq sections standard**, dans cet ordre figé :
 
 | Section | Contenu |
 |---|---|
-| `trace` | la trace noyau convertie en conteneur `RKV1` (CONTRACT.md §1) |
+| `trace` | la trace noyau **brute** (`.kev` figée par `tracelogger`) |
 | `pidin` | sortie de `pidin` (instantané des processus/threads) |
 | `slog2` | sortie de `slog2info` (journal système autour du crash) |
 | `core` | vidage d'incident (`dumper`) du processus disparu |
 | `manifest` | texte, ordre de clés **figé** (voir ci-dessous) |
+
+Une **sixième section facultative**, `rkv1`, s'ajoute en fin de table quand la
+conversion est possible : c'est la trace `.kev` convertie en conteneur `RKV1`
+(CONTRACT.md §1) **par le décodeur embarqué** `kev_rkv1.c`, dans l'invité
+elle-même. Elle est **byte-identique** à ce que produit le jumeau Python de
+l'hôte à partir du même `.kev` (vérifié : `tests/differential_kev_c.sh` et
+`host/tests/test_rda1.py`). Un lecteur d'archive est fourni côté hôte :
+`python3 -m replique.rda1 <archive.rda1> rkv1 -o trace.rkv1`.
 
 Le **manifeste** (clé par ligne, terminée par `\n`) :
 
