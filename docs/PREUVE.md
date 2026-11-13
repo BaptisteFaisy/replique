@@ -67,7 +67,7 @@ tourne, sous QEMU, et la démonstration s'y exécute de bout en bout.
 |---|---|
 | `qcc -V gcc_ntox86_64` compile **Déclic** et les trois générateurs de bogues en `-Werror` | la partie cible n'est pas de la fiction : elle compile contre le vrai SDK |
 | l'invité démarre avec `--cpu max` + RNG virtio + `-kernel ifs.bin` | l'image de `image/` est un invité QNX 8.0 qui démarre et rend la main |
-| la démo s'exécute : `bug-deadlock` s'interbloque, `slay` le termine, **Déclic assemble l'archive sur la cible** | `archive 13721 octets sha256=b2111615…`, `sections trace=7484 pidin=5278 slog2=355 core=58 manifest=114` |
+| la démo s'exécute : `bug-deadlock` s'interbloque, `slay` le termine, **Déclic assemble l'archive sur la cible** | archive 16 137 octets sha256 `3e2f0f44…`, `sections trace=7484 rkv1=2336 pidin=5278 slog2=355 core=58 manifest=114` (démo **publique**, invitée du site) |
 | la trace est **figée au moment du crash** (essai E2) | `tracelogger -d1 -E -r -f <fichier> -S 16M -s 0`, arrêté par SIGINT à la terminaison |
 | **l'oracle officiel lit cette trace** | `traceprinter` (hôte Linux) décode les 324 lignes d'événements noyau, en-tête « QNX 8.0.0 / 2026-06-05 » → `docs/preuves/` |
 | **l'archive porte une section `rkv1` convertie SUR LA CIBLE** | 6 sections, `rkv1` = 3 360 octets, **byte-identique** au Python (sha256 `72d8e33c…`) |
@@ -80,7 +80,7 @@ tourne, sous QEMU, et la démonstration s'y exécute de bout en bout.
 |---|---|
 | `trace-qnx800.kev` | une **vraie trace noyau QNX 8.0.0** capturée par `tracelogger` dans l'invité et figée par Déclic à la terminaison (7 484 octets) |
 | `traceprinter-qnx800.txt` | sa version décodée par **l'oracle officiel** : en-tête « QNX 8.0.0 / 2026-06-05 », 324 lignes d'événements noyau |
-| `archive-declic.rda1` | l'archive RDA1 assemblée **sur la cible** (13 721 octets, sha256 `b2111615…`) |
+| `archive-declic.rda1` | l'archive RDA1 à **cinq** sections assemblée sur la cible (13 721 octets, sha256 `b2111615…`) — version d'avant le portage du décodeur |
 | `archive-declic-rkv1.rda1` | l'archive **à six sections** produite sur la cible après le portage du décodeur : `trace` (`.kev` brut), `pidin`, `slog2`, `core`, `manifest` **et `rkv1`** (3 360 octets, converti **dans l'invité**, identique au Python) |
 | `trace-qnx800-wide.kev` | une trace **« wide »** (`tracelogger -w`, lancée après le boot) : elle **contient** le processus fautif (823 365 octets) |
 | `traceprinter-wide-qnx800.excerpt.txt` | l'extrait décodé par l'oracle : `bug-deadlock` et ses deux threads (priorités 60 et 50) créés, bloqués puis détruits — ce que la trace « fast » **ne** capturait pas |
