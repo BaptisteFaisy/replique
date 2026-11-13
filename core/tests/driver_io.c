@@ -90,31 +90,57 @@ void driver_parse_error(unsigned cause, size_t offset)
   fflush(stderr);
 }
 
-int driver_load(const char *path, replique_event *events, size_t cap, size_t *n,
-                replique_header *header)
+/* Tampons dimensionnes sur l'en-tete : une trace reelle n'a pas de taille
+ * fixe (la trace "wide" de preuve en a 13 294). */
+static int driver_alloc(driver_trace *t)
 {
-  size_t len = 0u;
-  uint8_t *buf;
-  unsigned cause = 0u;
-  size_t offset = 0u;
-  int status;
+  size_t count = replique_kev_event_count(t->blob, t->blob_len);
 
+  t->cap = count ? count : 1u;
+  t->dcap = t->cap;
+  t->events = (replique_event *)calloc(t->cap, sizeof *t->events);
+  t->decisions = (replique_decision *)calloc(t->dcap, sizeof *t->decisions);
+  if (!t->events || !t->decisions) {
+    return 0;
+  }
+  return 1;
+}
+
+int driver_open(const char *path, driver_trace *t)
+{
+  memset(t, 0, sizeof *t);
   if (!path) {
     fprintf(stderr, "replique: fichier manquant en argument\n");
     return DRIVER_EXIT_IO;
   }
-  buf = driver_slurp(path, &len);
-  if (!buf) {
+  t->blob = driver_slurp(path, &t->blob_len);
+  if (!t->blob) {
     fprintf(stderr, "replique: %s illisible\n", path);
     return DRIVER_EXIT_IO;
   }
-  status = replique_kev_parse_diag(buf, len, events, cap, n, &cause, &offset);
-  if (header) {
-    if (replique_kev_header(buf, len, header) != REPLIQUE_STATUS_OK) {
-      memset(header, 0, sizeof *header);
-    }
+  if (!driver_alloc(t)) {
+    fprintf(stderr, "replique: memoire insuffisante\n");
+    driver_close(t);
+    return DRIVER_EXIT_IO;
   }
-  free(buf);
+  return DRIVER_EXIT_OK;
+}
+
+void driver_close(driver_trace *t)
+{
+  free(t->events);
+  free(t->decisions);
+  free(t->blob);
+  memset(t, 0, sizeof *t);
+}
+
+int driver_parse(driver_trace *t)
+{
+  unsigned cause = 0u;
+  size_t offset = 0u;
+  int status = replique_kev_parse_diag(t->blob, t->blob_len, t->events, t->cap,
+                                        &t->n, &cause, &offset);
+
   if (status != REPLIQUE_STATUS_OK) {
     driver_parse_error(cause, offset);
     return DRIVER_EXIT_PARSE;

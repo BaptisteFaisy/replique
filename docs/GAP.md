@@ -2,7 +2,7 @@
 
 Réplique exploite cinq absences d'outillage dans l'écosystème QNX 8.0, identifiées dans le lot B du dossier `qnx-dossier` (« Outillage temps réel, trace et supervision »). Ce document reprend la table §2.2 du cahier des charges et le statut de vérification §13, **sans rien affirmer de plus**.
 
-> **Honnêteté imposée (cahier §13).** R1–R5 sont des affirmations d'**absence** dans la documentation publique QNX 8.0. Comme pour Tamis et Veille, elles doivent être revérifiées page à page dans le SDP installé avant d'être gravées dans la soumission. Le SDP n'est pas installé sur la machine de développement à ce jour.
+> **Honnêteté imposée (cahier §13).** R1–R5 sont des affirmations d'**absence** dans la documentation publique QNX 8.0. Comme pour Tamis et Veille, elles doivent être revérifiées page à page dans le SDP installé avant d'être gravées dans la soumission. Le SDP 8.0 **est** installé sur la machine de développement (`~/qnx800`, 13/11/2026) et l'oracle `traceprinter` y est utilisé — mais la relecture page à page de la documentation QNX, elle, reste à faire.
 
 ## Table des trous
 
@@ -12,7 +12,7 @@ Réplique exploite cinq absences d'outillage dans l'écosystème QNX 8.0, identi
 | **R2** | `traceprinter` **décode mais n'explique pas** : aucune causalité, aucun graphe d'attente, aucun coupable désigné pour un interblocage. | Lot B (Autopsie) | Vérifié dans l'inventaire lot B ; à confirmer sur une trace réelle |
 | **R3** | **Aucun rejeu déterministe** d'une trace d'ordonnanceur : reproduire un bogue de concurrence exige la **cible physique** et de la chance. | Lot B (Réplique) | À revérifier (absence dans la doc publique). Linux a `rr`/`perf` comme précédents — cités comme contexte, pas comme dépendance |
 | **R4** | Les bogues de concurrence (interblocage, inversion de priorité, course) sont **non déterministes** et non reproductibles à la demande. | Conséquence de R3 | Découle de R3 ; même statut |
-| **R5** | Pas de **causalité des messages** : qui a envoyé à qui, avec quelle latence, dans quel ordre — à reconstruire à la main depuis la trace brute. | Lot B (Filature) | Même statut que R2 (inventaire lot B, à confirmer sur trace réelle) |
+| **R5** | Pas de **causalité des messages** : qui a envoyé à qui, avec quelle latence, dans quel ordre — à reconstruire à la main depuis la trace brute. | Lot B (Filature) | **Vérifié sur trace réelle** (13/11/2026) : la trace expose le canal (`rcvid`) et le pid du détenteur à l'envoi/réception, le `tid` et le `pid` du répondant à la réponse — la causalité est reconstructible. Ce qui n'est **pas** exposé : l'identifiant de synchronisation (voir `docs/KEV-FORMAT.md` §1.2) |
 
 ## Réponse du projet, trou par trou
 
@@ -22,7 +22,7 @@ Réplique exploite cinq absences d'outillage dans l'écosystème QNX 8.0, identi
 | R2 | Autopsie : graphe d'attente, chaîne de blocage, coupable désigné par règle gelée, rapport une page | `core/src/deadlock.c`, `host/replique/deadlock.py`, `docs/REPORT-TEMPLATE.md` |
 | R3 | Réplique : rejeu déterministe prouvé par hachage FNV-1a (P1, 5 rejeux identiques) | `core/src/replay.c`, `host/replique/replay.py`, `tests/determinism.sh` |
 | R4 | Les scénarios de référence deviennent des fixtures versionnées, rejouables à l'infini sans cible | `scenarios/SPEC.md`, `fixtures/`, `host/replique/kevgen.py` |
-| R5 | Les événements `MSG_SEND`/`MSG_RECEIVE`/`MSG_REPLY`/`MSG_ERROR` du contrat portent pid/tid/numéro de séquence : la causalité est reconstructible | CONTRACT.md §2.2, `replique_waitfor_build` |
+| R5 | Les événements `MSG_SEND`/`MSG_RECEIVE`/`MSG_REPLY`/`MSG_ERROR` du contrat portent pid/tid : la causalité est reconstructible — **vérifié sur la trace QNX 8.0 réelle** (le canal `rcvid` y est porté aussi) | CONTRACT.md §2.2, `replique_waitfor_build`, `docs/preuves/analyse-trace-reelle.md` |
 
 ## Affirmations techniques conditionnées (cahier §13, verbatim)
 

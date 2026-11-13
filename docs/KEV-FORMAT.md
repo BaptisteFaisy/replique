@@ -39,6 +39,35 @@ priorité, politique) sur **10 989** événements d'état de thread de la trace
 | `SND_MESSAGE` / `REC_MESSAGE` | `(rcvid, pid du détenteur du canal)` | `MSG_SEND` (`a` = pid destinataire) / `MSG_RECEIVE` (le pid **source** n'est pas exposé : `a` = 0) |
 | `REPLY_MESSAGE` / `MSG_ERROR` | `(tid, pid)` du répondant | `MSG_REPLY` / `MSG_ERROR` (tid et pid du répondant dans les colonnes génériques) |
 
+#### Pourquoi l'identifiant de mutex n'est pas dans la trace (mesuré, 13/11/2026)
+
+En QNX 8, un mutex `pthread` **contendu** ne bloque pas le thread sur un
+objet noyau nommé : le client envoie un `MsgSend` au **serveur de
+synchronisation**, qui détient le mutex. L'oracle officiel le montre sans
+ambiguïté sur la trace « wide » (`docs/preuves/trace-qnx800-wide.kev`) :
+
+```
+KER_CALL  :MSG_SENDV/11   coid:0x00000001
+COMM      :SND_MESSAGE    rcvid:0x00010006 pid:3
+THREAD    :THREPLY        pid:180232 tid:2 priority:60 policy:1
+```
+
+Le `MsgSend` est tracé avec **l'en-tête** du message (`0x102`, `0x27`, `0x0`),
+pas avec son **corps** — c'est là que vit l'identifiant de l'objet de
+synchronisation, et le noyau ne le recopie pas. Aucun `SYNC_MUTEX_LOCK`
+n'apparaît dans la capture ; les deux seuls événements de ce nom sont des
+**sorties** d'appel interrompues par le tueur du processus (`errno 39`,
+`EL3HLT`).
+
+Conséquence, mesurée et assumée : **le graphe d'attente n'est pas
+constructible à partir d'une trace QNX 8.0** pour un interblocage de mutex
+`pthread`. Le projet le dit plutôt que de le maquiller. Ce que la trace
+expose en revanche : le **canal** (`rcvid`) de chaque envoi, le pid de son
+détenteur, et — côté noyau — le `tid` et le `pid` du serveur qui reçoit le
+message (`KER_EXIT :MSG_RECEIVEV`). De quoi reconstruire la causalité des
+messages (trou R5), et un graphe d'attente **sur les canaux** : c'est la suite
+naturelle.
+
 Les champs **non exposés** par la trace restent à 0 : identifiant de mutex,
 valeur de sémaphore, numéro de séquence, tid du serveur d'un canal, pid source
 d'une réception. La trace dit *ce qui se passe*, pas *pourquoi* (c'est le

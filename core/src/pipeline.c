@@ -122,14 +122,26 @@ static replique_decision *decisions_buffer(void)
   return decisions;
 }
 
+/* Tampon d'evenements de repli : statique, borne par REPLIQUE_MAX_EVENTS.
+ * Les traces reelles sont chargees avec un tampon dimensionne par l'appelant
+ * (replique_kev_event_count) : ce repli ne sert qu'aux appels sans tampon. */
+static replique_event *events_buffer(void)
+{
+  static replique_event events[REPLIQUE_MAX_EVENTS];
+
+  return events;
+}
+
 int replique_pipeline(const uint8_t *buf, size_t len,
                       const replique_sched_config *cfg,
                       replique_verdict *verdicts, size_t vcap,
-                      size_t *n_verdicts, replique_replay_result *res)
+                      size_t *n_verdicts, replique_replay_result *res,
+                      replique_event *events, size_t ecap)
 {
-  static replique_event events[REPLIQUE_MAX_EVENTS];
   replique_header header;
   replique_sched_config local;
+  replique_decision *decisions;
+  size_t dcap;
   size_t n_events = 0u;
   unsigned cause = 0u;
   size_t offset = 0u;
@@ -141,8 +153,17 @@ int replique_pipeline(const uint8_t *buf, size_t len,
   if (!verdicts || !vcap || !res) {
     return REPLIQUE_ERR_ARG;
   }
-  status = replique_kev_parse_diag(buf, len, events, REPLIQUE_MAX_EVENTS,
-                                   &n_events, &cause, &offset);
+  decisions = res->decisions;
+  dcap = res->cap;
+  memset(res, 0, sizeof *res);
+  res->decisions = (decisions && dcap) ? decisions : decisions_buffer();
+  res->cap = (decisions && dcap) ? dcap : REPLIQUE_MAX_DECISIONS;
+  if (!events) {
+    events = events_buffer();
+    ecap = REPLIQUE_MAX_EVENTS;
+  }
+  status = replique_kev_parse_diag(buf, len, events, ecap, &n_events, &cause,
+                                   &offset);
   if (status != REPLIQUE_STATUS_OK) {
     replique_verdict_set(verdicts, REPLIQUE_V_PARSE_ERROR, 0u, 0u, 0u,
                          (uint32_t)offset, 0u, 0u, replique_cause_name(cause));
@@ -157,9 +178,6 @@ int replique_pipeline(const uint8_t *buf, size_t len,
     replique_sched_config_default(&local);
     cfg = &local;
   }
-  memset(res, 0, sizeof *res);
-  res->decisions = decisions_buffer();
-  res->cap = REPLIQUE_MAX_DECISIONS;
   *n_verdicts = emit_all(events, n_events, cfg, header.flags, verdicts, vcap,
                          res);
   return REPLIQUE_STATUS_OK;

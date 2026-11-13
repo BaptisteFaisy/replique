@@ -7,29 +7,36 @@
 
 int main(int argc, char **argv)
 {
-  static replique_event events[REPLIQUE_MAX_EVENTS];
   replique_sched_config cfg;
+  driver_trace trace;
   char *buffer;
-  size_t n = 0u;
   size_t len = 0u;
   unsigned truncated = 0u;
   int hash_only = 0;
   const char *path = driver_args(argc, argv, &cfg, &hash_only);
-  int status = driver_load(path, events, REPLIQUE_MAX_EVENTS, &n, NULL);
+  int status = driver_open(path, &trace);
 
   if (status != DRIVER_EXIT_OK) {
     return status;
   }
-  buffer = (char *)malloc(n * 128u + 128u);
+  status = driver_parse(&trace);
+  if (status != DRIVER_EXIT_OK) {
+    driver_close(&trace);
+    return status;
+  }
+  buffer = (char *)malloc(trace.cap * 128u + 128u);
   if (!buffer) {
+    driver_close(&trace);
     return DRIVER_EXIT_IO;
   }
-  len = replique_report_events(events, n, buffer, n * 128u + 128u, &truncated);
+  len = replique_report_events(trace.events, trace.n, buffer,
+                               trace.cap * 128u + 128u, &truncated);
   if (!truncated) {
     driver_emit(buffer, len);
   } else {
     fprintf(stderr, "replique: tampon de sortie trop petit\n");
   }
   free(buffer);
+  driver_close(&trace);
   return truncated ? DRIVER_EXIT_IO : DRIVER_EXIT_OK;
 }

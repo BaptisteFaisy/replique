@@ -198,6 +198,16 @@ int replique_kev_header(const uint8_t *buf, size_t len, replique_header *hdr)
   return check_body(buf, hdr, NULL, NULL);
 }
 
+size_t replique_kev_event_count(const uint8_t *buf, size_t len)
+{
+  replique_header hdr;
+
+  if (check_header(buf, len, &hdr, NULL, NULL) != REPLIQUE_STATUS_OK) {
+    return 0u;
+  }
+  return (size_t)hdr.n_events;
+}
+
 int replique_kev_parse_diag(const uint8_t *buf, size_t len, replique_event *out,
                             size_t cap, size_t *n_out, unsigned *cause,
                             size_t *offset)
