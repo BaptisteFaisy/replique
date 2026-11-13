@@ -17,6 +17,7 @@ import unittest
 from replique import kev
 from replique import kev2rkv1
 from replique import kev_reader as kr
+from replique import model as m
 
 _KEV = os.path.join(os.path.dirname(__file__), "..", "..", "docs", "preuves",
                     "trace-qnx800.kev")
@@ -59,6 +60,29 @@ class KevReaderTest(unittest.TestCase):
         self.assertEqual(header.time_unit, self.hdr.cycles_per_sec)
         # rejouer le RKV1 réel ne doit pas lever, et deux conversions sont égales
         self.assertEqual(kev2rkv1.convert(self.blob), blob)
+
+    def test_fixture_commitee(self):
+        path = os.path.join(os.path.dirname(__file__), "..", "..", "docs",
+                            "preuves", "trace-qnx800.rkv1")
+        if not os.path.exists(path):
+            self.skipTest("fixture RKV1 absente")
+        with open(path, "rb") as handle:
+            self.assertEqual(handle.read(), kev2rkv1.convert(self.blob))
+
+    def test_prio_change_derive(self):
+        """La trace « wide » contient de vrais changements de priorité."""
+        path = os.path.join(os.path.dirname(__file__), "..", "..", "docs",
+                            "preuves", "trace-qnx800-wide.kev")
+        if not os.path.exists(path):
+            self.skipTest("trace wide absente")
+        with open(path, "rb") as handle:
+            blob = handle.read()
+        _, events = kev.parse(kev2rkv1.convert(blob))
+        changes = [e for e in events if e.cls == m.EV_PRIO_CHANGE]
+        self.assertGreater(len(changes), 0)
+        for e in changes:
+            self.assertNotEqual(e.a, e.b)      # la priorité a vraiment changé
+            self.assertGreater(e.a, 0)
 
 
 if __name__ == "__main__":

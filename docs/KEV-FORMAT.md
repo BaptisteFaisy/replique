@@ -24,17 +24,28 @@ Le format binaire `.kev` QNX 8.0 est **documenté** dans `sys/trace.h` du SDP
 (`traceevent_t`, `traceheader`, masques de bits `_NTO_TRACE_GETCPU`/`CLASS`/`EVENT`,
 combinaison `CB`/`CC`/`CE`) et **décodé directement** par
 `host/replique/kev_reader.py` ; `host/replique/kev2rkv1.py` le convertit en
-`RKV1`. Le décodage est **validé par différentiel** contre l'oracle
-`traceprinter` sur la trace réelle de `docs/preuves/trace-qnx800.kev` : mêmes
-comptes par type d'événement (voir §3). Le cœur portable lit toujours le
-conteneur `RKV1` ; l'adaptateur amont est désormais **écrit et prouvé**.
+`RKV1` (et `target/declic/kev_rkv1.c` fait la même chose **sur la cible**).
+Le décodage est **validé par différentiel** contre l'oracle `traceprinter` :
+mêmes comptes par type d'événement **et mêmes champs** (`pid`, `tid`,
+priorité, politique) sur **10 989** événements d'état de thread de la trace
+« wide » — 0 écart (voir §3).
 
-Correspondance réalisée (sous-ensemble assumé de `CONTRACT.md` §2) : cycle de
-vie process/thread, états de thread (avec priorité/politique issues de la
-seconde moitié de la combinaison), message passing (`SND`/`REC`/`REPLY`/`ERROR`),
-interruptions, timers. Les champs **non exposés** par la trace (id de mutex,
-valeur de sémaphore, numéro de séquence) restent à 0 — la trace dit *ce qui se
-passe*, pas *pourquoi* (c'est le postulat du projet, cf. `docs/GAP.md`).
+#### Ce que la trace donne réellement
+
+| Événement `.kev` | Contenu décodé | Projection RKV1 |
+|---|---|---|
+| état de thread (2 records combinés) | `(pid, tid)` puis `(priorité, politique)` | `THREAD_STATE` (état + raison de blocage) ; la priorité alimente `THREAD_CREATE.a` et les changements → `PRIO_CHANGE` |
+| création de thread | `(pid, tid)` | `THREAD_CREATE` (politique + priorité **observées à la première activité**) |
+| `SND_MESSAGE` / `REC_MESSAGE` | `(rcvid, pid du détenteur du canal)` | `MSG_SEND` (`a` = pid destinataire) / `MSG_RECEIVE` (le pid **source** n'est pas exposé : `a` = 0) |
+| `REPLY_MESSAGE` / `MSG_ERROR` | `(tid, pid)` du répondant | `MSG_REPLY` / `MSG_ERROR` (tid et pid du répondant dans les colonnes génériques) |
+
+Les champs **non exposés** par la trace restent à 0 : identifiant de mutex,
+valeur de sémaphore, numéro de séquence, tid du serveur d'un canal, pid source
+d'une réception. La trace dit *ce qui se passe*, pas *pourquoi* (c'est le
+postulat du projet, cf. `docs/GAP.md`) — mais elle donne désormais **les
+priorités réelles**, y compris les **héritages** observés (un thread de
+serveur qui passe de 10 à 24 puis revient à 10 : c'est l'héritage de priorité
+rendu, le phénomène que l'exigence C5 cherche à détecter).
 
 ## 2. Le conteneur RKV1 (CONTRACT.md §1 — gelé)
 

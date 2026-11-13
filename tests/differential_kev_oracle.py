@@ -96,6 +96,47 @@ def oracle_counts(text):
     return counts
 
 
+def oracle_fields(text):
+    """Champs par événement de thread : (ts, nom) -> [ (pid, tid, prio, pol) ]."""
+    table = collections.defaultdict(list)
+    for line in text.splitlines():
+        m = re.match(r"t:0x([0-9a-f]+) CPU:\d+ THREAD\s+:([A-Z0-9_]+)\s+"
+                     r"pid:(\d+) tid:(\d+)(?: priority:(\d+) policy:(\d+))?", line)
+        if not m:
+            continue
+        prio = int(m.group(5)) if m.group(5) else None
+        pol = int(m.group(6)) if m.group(6) else None
+        table[(int(m.group(1), 16), m.group(2))].append(
+            (int(m.group(3)), int(m.group(4)), prio, pol))
+    return table
+
+
+def field_check(blob, text):
+    """Compare pid/tid/priorité/politique de chaque événement d'état de thread."""
+    table = oracle_fields(text)
+    ok = ko = 0
+    _, events = kr.logical_events(blob)
+    for e in events:
+        if e.cls != kr.CLS_PROC_THREAD:
+            continue
+        name = "TH" + kr.STATE_NAMES.get(e.code, "")
+        key = (e.ts, name)
+        bucket = table.get(key)
+        if not bucket:
+            continue
+        mine = (e.words[0], e.words[1],
+                e.words[2] if len(e.words) > 2 else None,
+                e.words[3] if len(e.words) > 3 else None)
+        if mine in bucket:
+            bucket.remove(mine)
+            ok += 1
+        else:
+            ko += 1
+            print("  KO  champs %s ts=%d : décodeur=%s oracle=%s"
+                  % (name, e.ts, mine, bucket[:1]))
+    return ok, ko
+
+
 def main(argv):
     kev_path = argv[1] if len(argv) > 1 else os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "..", "docs", "preuves", "trace-qnx800.kev")
@@ -120,7 +161,9 @@ def main(argv):
             ko += 1
             print("  KO  %-20s oracle=%d  decodeur=%d" % (name, o, mine))
     print("differentiel oracle : OK=%d KO=%d" % (ok, ko))
-    return 1 if ko else 0
+    fok, fko = field_check(blob, text)
+    print("differentiel champs (pid/tid/priorité/politique) : OK=%d KO=%d" % (fok, fko))
+    return 1 if (ko or fko) else 0
 
 
 if __name__ == "__main__":
